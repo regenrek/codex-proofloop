@@ -1,4 +1,4 @@
 interface:
-  display_name: "Codex Loop"
+  display_name: "Codex Herdr Orchestrator"
   short_description: "Orchestrate bounded Herdr agent workflows"
-  default_prompt: "Use $codex-loop to coordinate a bounded, evidence-backed Herdr workflow for this project."
+  default_prompt: "Use $codex-herdr-orchestrator to coordinate a bounded, evidence-backed Herdr workflow for this project."

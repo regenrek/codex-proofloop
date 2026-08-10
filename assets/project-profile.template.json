@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "kind": "codex-loop/project-profile",
+  "kind": "codex-herdr-orchestrator/project-profile",
   "project": {
     "name": "replace-me",
     "root": ".",
@@ -54,7 +54,7 @@
     "timeout_seconds": 900
   },
   "evidence": {
-    "directory": ".codex-loop/evidence",
+    "directory": ".codex-herdr-orchestrator/evidence",
     "required": [
       "diff",
       "validation-result",

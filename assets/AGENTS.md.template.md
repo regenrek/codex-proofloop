@@ -1,6 +1,6 @@
 # AGENTS.md
 
-## Codex Loop contract
+## Codex Herdr Orchestrator contract
 
 - Task source: `<issue, plan item, specification, or local path>`
 - Project profile: `<project-relative path to project-profile.json>`
@@ -31,7 +31,8 @@
 
 ## Execution
 
-Before editing, validate the project profile and run contract with the installed `codex-loop`
+Before editing, validate the project profile and run contract with the installed
+`codex-herdr-orchestrator`
 validator. Preserve the existing workspace delta. Stop after the current atomic action when a stop
 condition fires, then return an evidence-backed handoff. Never expose credentials or inspect their
 contents.

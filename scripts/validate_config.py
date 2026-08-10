@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Codex Loop project profiles and run contracts without dependencies."""
+"""Validate Codex Herdr Orchestrator profiles and contracts without dependencies."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-PROFILE_KIND = "codex-loop/project-profile"
-CONTRACT_KIND = "codex-loop/run-contract"
+PROFILE_KIND = "codex-herdr-orchestrator/project-profile"
+CONTRACT_KIND = "codex-herdr-orchestrator/run-contract"
 LUNA_MODES = {"heartbeat-sentinel", "bounded-verifier", "interactive-operator"}
 FABLE_STAGES = {"pre-implementation", "final-review"}
 

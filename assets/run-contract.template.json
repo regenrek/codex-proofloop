@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "kind": "codex-loop/run-contract",
+  "kind": "codex-herdr-orchestrator/run-contract",
   "task": {
     "id": "replace-me",
     "source": "replace-with-project-task-source",
@@ -27,7 +27,7 @@
     ]
   },
   "evidence": {
-    "directory": ".codex-loop/evidence/replace-with-run-id",
+    "directory": ".codex-herdr-orchestrator/evidence/replace-with-run-id",
     "required": [
       "baseline",
       "diff",
@@ -54,7 +54,7 @@
     "criteria": []
   },
   "cleanup": {
-    "ownership_record": ".codex-loop/evidence/replace-with-run-id/pane-ownership.json",
+    "ownership_record": ".codex-herdr-orchestrator/evidence/replace-with-run-id/pane-ownership.json",
     "close_recorded_workflow_panes": true,
     "leave_preexisting_panes_open": true,
     "retire_sentinel_state": true

@@ -1,7 +1,7 @@
-# Codex Loop
+# Codex Herdr Orchestrator
 
-Codex Loop is a reusable Codex skill for bounded, visible multi-agent work through Herdr. It keeps
-the intelligence composite without making ownership fuzzy:
+Codex Herdr Orchestrator is a reusable Codex skill for bounded, visible multi-agent work through
+Herdr. It keeps the intelligence composite without making ownership fuzzy:
 
 - Sol owns intake, architecture, design-sensitive implementation, integration, and the final
   decision.
@@ -16,10 +16,12 @@ manager, or Herdr installer.
 
 ## Install
 
-Clone or copy this repository into a Codex skill directory using the folder name `codex-loop`:
+Clone or copy this repository into a Codex skill directory using the folder name
+`codex-herdr-orchestrator`:
 
 ```bash
-git clone <repository-url> ~/.agents/skills/codex-loop
+git clone https://github.com/regenrek/codex-herdr-orchestrator.git \
+  ~/.agents/skills/codex-herdr-orchestrator
 ```
 
 The skill is intentionally not installed globally by this repository. Herdr must already be
@@ -36,12 +38,12 @@ installed, configured, and running when a project selects a pane-backed role.
 4. Validate the documents:
 
    ```bash
-   python3 /path/to/codex-loop/scripts/validate_config.py \
+   python3 /path/to/codex-herdr-orchestrator/scripts/validate_config.py \
      path/to/project-profile.json path/to/run-contract.json
    ```
 
-5. Ask Codex: `Use $codex-loop to execute the selected task under this project's profile and run
-   contract.`
+5. Ask Codex: `Use $codex-herdr-orchestrator to execute the selected task under this project's
+   profile and run contract.`
 
 For Planr-backed work, start from `examples/planr-project-profile.json` and
 `examples/planr-AGENTS.md`. They demonstrate Planr specialization without imposing a game engine,
@@ -93,8 +95,8 @@ must match the installed version, and manual acceptance criteria remain owned by
 
 - The validator checks structure and safety invariants; it does not prove that a command, path glob,
   Herdr target, or Planr item exists.
-- Codex Loop does not start Herdr, discover credentials, repair infrastructure, or enforce filesystem
-  permissions outside the agent prompts and host configuration.
+- Codex Herdr Orchestrator does not start Herdr, discover credentials, repair infrastructure, or
+  enforce filesystem permissions outside the agent prompts and host configuration.
 - Pane suitability requires inspection of live Herdr state and cannot be decided from JSON alone.
 - Subjective, experiential, clinical, financial, safety, and other declared human decisions remain
   manual acceptance boundaries.

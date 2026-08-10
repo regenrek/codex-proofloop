@@ -1,9 +1,9 @@
 ---
-name: codex-loop
+name: codex-herdr-orchestrator
 description: Coordinate project-neutral Herdr workflows in which Sol owns intake, architecture, design-sensitive implementation, integration, and the final decision; Luna Max serves only as a read-only heartbeat sentinel, fresh bounded verifier, or interactive operator when project policy selects it; and Fable supplies at most one independent semantic challenge or final review. Use for multi-agent implementation runs that need explicit ownership, budgets, evidence, pane lifecycle safety, or reusable project/run contracts; do not use for trivial edits or overlapping writers.
 ---
 
-# Codex Loop
+# Codex Herdr Orchestrator
 
 Keep Sol responsible for the task, architecture, sole-writer implementation, integration, and final
 decision. Add another agent only when its distinct role materially improves the run.
