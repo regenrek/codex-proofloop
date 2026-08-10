@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Loop"
+  short_description: "Orchestrate bounded Herdr agent workflows"
+  default_prompt: "Use $codex-loop to coordinate a bounded, evidence-backed Herdr workflow for this project."
