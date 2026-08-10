@@ -5,7 +5,7 @@
 *.key
 *.log
 *.pem
-.codex-herdr-orchestrator/
+.codex-herdr/
 __pycache__/
 *.py[cod]
 .pytest_cache/

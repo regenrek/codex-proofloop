@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "kind": "codex-herdr-orchestrator/run-contract",
+  "kind": "codex-herdr-sol-luna/run-contract",
   "task": {
     "id": "replace-me",
     "source": "replace-with-project-task-source",
@@ -15,7 +15,6 @@
   ],
   "tests_allowed": true,
   "luna_mode": null,
-  "fable_stage": null,
   "validation": {
     "cwd": ".",
     "command": "replace-with-one-focused-command",
@@ -27,7 +26,7 @@
     ]
   },
   "evidence": {
-    "directory": ".codex-herdr-orchestrator/evidence/replace-with-run-id",
+    "directory": ".codex-herdr/evidence/replace-with-run-id",
     "required": [
       "baseline",
       "diff",
@@ -54,7 +53,7 @@
     "criteria": []
   },
   "cleanup": {
-    "ownership_record": ".codex-herdr-orchestrator/evidence/replace-with-run-id/pane-ownership.json",
+    "ownership_record": ".codex-herdr/evidence/replace-with-run-id/pane-ownership.json",
     "close_recorded_workflow_panes": true,
     "leave_preexisting_panes_open": true,
     "retire_sentinel_state": true

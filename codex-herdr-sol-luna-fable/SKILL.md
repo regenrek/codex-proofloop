@@ -1,9 +1,9 @@
 ---
-name: codex-herdr-orchestrator
-description: Coordinate project-neutral Herdr workflows in which Sol owns intake, architecture, design-sensitive implementation, integration, and the final decision; Luna Max serves only as a read-only heartbeat sentinel, fresh bounded verifier, or interactive operator when project policy selects it; and Fable supplies at most one independent semantic challenge or final review. Use for multi-agent implementation runs that need explicit ownership, budgets, evidence, pane lifecycle safety, or reusable project/run contracts; do not use for trivial edits or overlapping writers.
+name: codex-herdr-sol-luna-fable
+description: Coordinate project-configured Herdr workflows in which Sol owns intake, architecture, design-sensitive implementation, integration, and the final decision; Luna Max serves only as a read-only heartbeat sentinel, fresh bounded verifier, or interactive operator; and Fable supplies at most one independent semantic challenge or final review. Use for bounded Sol-Luna-Fable implementation runs with explicit ownership, evidence, budgets, or pane lifecycle safety; do not use for trivial edits or overlapping writers.
 ---
 
-# Codex Herdr Orchestrator
+# Codex Herdr: Sol, Luna, and Fable
 
 Keep Sol responsible for the task, architecture, sole-writer implementation, integration, and final
 decision. Add another agent only when its distinct role materially improves the run.
@@ -59,8 +59,7 @@ acceptance. Sol resolves all findings and makes the final decision.
 8. Integrate the decision, write the handoff, and clean up all workflow-owned completed panes.
 
 Read [references/orchestration.md](references/orchestration.md) when operating Herdr panes, defining
-evidence, handling stop conditions, or migrating an existing workflow. Use the
-[Planr example](examples/planr-project-profile.json) when the task source is a Planr item.
+evidence, handling stop conditions, or migrating an existing workflow.
 
 ## Preserve pane ownership
 

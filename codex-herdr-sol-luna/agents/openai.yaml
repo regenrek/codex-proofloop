@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Herdr: Sol + Luna"
+  short_description: "Coordinate bounded Sol and Luna workflows"
+  default_prompt: "Use $codex-herdr-sol-luna to coordinate this task through a bounded Herdr workflow."

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "kind": "codex-herdr-orchestrator/project-profile",
+  "kind": "codex-herdr-sol-luna/project-profile",
   "project": {
     "name": "replace-me",
     "root": ".",
@@ -25,15 +25,6 @@
         "bounded-verifier",
         "interactive-operator"
       ]
-    },
-    "fable": {
-      "enabled": true,
-      "max_turns_per_hypothesis": 1,
-      "allowed_stages": [
-        "pre-implementation",
-        "final-review"
-      ],
-      "writer": false
     }
   },
   "paths": {
@@ -54,7 +45,7 @@
     "timeout_seconds": 900
   },
   "evidence": {
-    "directory": ".codex-herdr-orchestrator/evidence",
+    "directory": ".codex-herdr/evidence",
     "required": [
       "diff",
       "validation-result",

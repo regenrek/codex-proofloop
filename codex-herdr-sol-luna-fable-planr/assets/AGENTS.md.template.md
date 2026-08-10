@@ -1,6 +1,6 @@
 # AGENTS.md
 
-## Codex Herdr Orchestrator contract
+## Codex Herdr Sol-Luna-Fable-Planr contract
 
 - Task source: `<issue, plan item, specification, or local path>`
 - Project profile: `<project-relative path to project-profile.json>`
@@ -32,7 +32,7 @@
 ## Execution
 
 Before editing, validate the project profile and run contract with the installed
-`codex-herdr-orchestrator`
+`codex-herdr-sol-luna-fable-planr`
 validator. Preserve the existing workspace delta. Stop after the current atomic action when a stop
 condition fires, then return an evidence-backed handoff. Never expose credentials or inspect their
 contents.

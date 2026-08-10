@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+VARIANTS = {
+    "codex-herdr-sol-luna": {"fable": False, "planr": False},
+    "codex-herdr-sol-luna-fable": {"fable": True, "planr": False},
+    "codex-herdr-sol-luna-fable-planr": {"fable": True, "planr": True},
+}
+
+
+def load_json(path: Path) -> dict:
+    with path.open(encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def load_validator(variant: str):
+    path = ROOT / variant / "scripts" / "validate_config.py"
+    spec = importlib.util.spec_from_file_location(f"validate_{variant.replace('-', '_')}", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def variant_text(directory: Path) -> str:
+    suffixes = {".json", ".md", ".py", ".yaml"}
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(directory.rglob("*"))
+        if path.is_file() and path.suffix in suffixes
+    ).lower()
+
+
+class VariantTests(unittest.TestCase):
+    def test_skill_names_match_their_directories(self) -> None:
+        for variant in VARIANTS:
+            with self.subTest(variant=variant):
+                skill = (ROOT / variant / "SKILL.md").read_text(encoding="utf-8")
+                metadata = (ROOT / variant / "agents" / "openai.yaml").read_text(encoding="utf-8")
+                self.assertIn(f"name: {variant}\n", skill)
+                self.assertIn(f"${variant}", metadata)
+
+    def test_each_variant_validates_its_shipped_documents(self) -> None:
+        for variant, features in VARIANTS.items():
+            with self.subTest(variant=variant):
+                directory = ROOT / variant
+                validator = load_validator(variant)
+                documents = [
+                    directory / "assets" / "project-profile.template.json",
+                    directory / "assets" / "run-contract.template.json",
+                ]
+                if features["planr"]:
+                    documents.append(directory / "examples" / "planr-project-profile.json")
+                for document in documents:
+                    self.assertEqual([], validator.validate_document(load_json(document)), document)
+
+    def test_cli_works_in_every_standalone_directory(self) -> None:
+        for variant in VARIANTS:
+            with self.subTest(variant=variant):
+                directory = ROOT / variant
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(directory / "scripts" / "validate_config.py"),
+                        str(directory / "assets" / "project-profile.template.json"),
+                        str(directory / "assets" / "run-contract.template.json"),
+                    ],
+                    cwd=directory,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertEqual(2, result.stdout.count("OK "))
+
+    def test_profiles_expose_only_the_selected_agents(self) -> None:
+        for variant, features in VARIANTS.items():
+            with self.subTest(variant=variant):
+                profile = load_json(ROOT / variant / "assets" / "project-profile.template.json")
+                expected_roles = {"sol", "luna", "fable"} if features["fable"] else {"sol", "luna"}
+                self.assertEqual(expected_roles, set(profile["roles"]))
+                contract = load_json(ROOT / variant / "assets" / "run-contract.template.json")
+                self.assertEqual(features["fable"], "fable_stage" in contract)
+
+    def test_optional_tool_names_are_absent_from_smaller_variants(self) -> None:
+        sol_luna_text = variant_text(ROOT / "codex-herdr-sol-luna")
+        self.assertNotIn("fable", sol_luna_text)
+        self.assertNotIn("planr", sol_luna_text)
+
+        fable_text = variant_text(ROOT / "codex-herdr-sol-luna-fable")
+        self.assertNotIn("planr", fable_text)
+
+    def test_safety_invariants_are_enforced_by_every_validator(self) -> None:
+        for variant, features in VARIANTS.items():
+            with self.subTest(variant=variant):
+                directory = ROOT / variant
+                validator = load_validator(variant)
+                profile = load_json(directory / "assets" / "project-profile.template.json")
+                profile["roles"]["sol"]["sole_writer"] = False
+                profile["roles"]["luna"]["read_only"] = False
+                profile["pane_policy"]["close_recorded_only"] = False
+                if features["fable"]:
+                    profile["roles"]["fable"]["max_turns_per_hypothesis"] = 2
+                errors = validator.validate_document(profile)
+                self.assertTrue(any("sole_writer" in error for error in errors))
+                self.assertTrue(any("luna.read_only" in error for error in errors))
+                self.assertTrue(any("close_recorded_only" in error for error in errors))
+                if features["fable"]:
+                    self.assertTrue(any("max_turns_per_hypothesis" in error for error in errors))
+
+
+if __name__ == "__main__":
+    unittest.main()

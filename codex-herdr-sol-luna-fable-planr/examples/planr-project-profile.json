@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "codex-herdr-sol-luna-fable-planr/project-profile",
+  "project": {
+    "name": "example-planr-project",
+    "root": ".",
+    "task_source": "Planr live map item for the active FeatureRun"
+  },
+  "roles": {
+    "sol": {
+      "owns": [
+        "intake",
+        "architecture",
+        "design-sensitive implementation",
+        "integration",
+        "final decision"
+      ],
+      "sole_writer": true
+    },
+    "luna": {
+      "enabled": true,
+      "read_only": true,
+      "allowed_modes": [
+        "heartbeat-sentinel",
+        "bounded-verifier"
+      ]
+    },
+    "fable": {
+      "enabled": true,
+      "max_turns_per_hypothesis": 1,
+      "allowed_stages": [
+        "final-review"
+      ],
+      "writer": false
+    }
+  },
+  "paths": {
+    "allowed": [
+      "src/**",
+      "tests/**",
+      "docs/**"
+    ],
+    "forbidden": [
+      ".git/**",
+      ".env",
+      ".env.*",
+      "**/*.pem",
+      "**/*.key"
+    ]
+  },
+  "validation": {
+    "cwd": ".",
+    "command": "python3 -m unittest discover -s tests -v",
+    "timeout_seconds": 900
+  },
+  "evidence": {
+    "directory": ".codex-herdr/evidence",
+    "required": [
+      "planr-item-state",
+      "diff",
+      "validation-result",
+      "handoff"
+    ]
+  },
+  "budgets": {
+    "checkpoint_minutes": 15,
+    "hard_stop_minutes": 35,
+    "max_patch_batches": 1
+  },
+  "stop_conditions": [
+    "Planr item or dependency changed",
+    "out-of-scope write",
+    "second writer or nested delegation",
+    "hypothesis disproved or scope broadened",
+    "checkpoint or hard-stop exceeded"
+  ],
+  "manual_acceptance": {
+    "required": false,
+    "owner": "human",
+    "criteria": []
+  },
+  "pane_policy": {
+    "reuse_suitable_existing": true,
+    "record_created": true,
+    "close_recorded_only": true,
+    "max_completed_workflow_panes": 0
+  }
+}
