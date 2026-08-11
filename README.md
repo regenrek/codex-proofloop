@@ -6,6 +6,18 @@ Three ready-to-use Codex skills for running focused, bounded workflows in Herdr.
 
 One agent writes. Optional agents watch or review. Nothing runs behind your back.
 
+## Why this exists
+
+Coding agents often create useful tests and probes while exploring a change. The problem starts when
+every temporary observation becomes a permanent repository asset.
+
+Codex Herdr treats agent-generated tests as temporary by default. A test stays only when it protects a
+unique, accepted behavior that existing tests do not.
+
+`BUILD → ACCEPT → HARDEN → DISTILL`
+
+**Catch aggressively. Commit reluctantly.**
+
 ## Choose your version
 
 | Directory | Includes | Choose this when |
@@ -26,8 +38,6 @@ Each directory works on its own. Copy only the one you need.
 4. **Review stays bounded.** Fable and Planr are used only by the variants that include them.
 5. **You get a clean handoff.** Changes, validation, and important run evidence are summarized at the
    end.
-
-**Catch aggressively. Commit reluctantly.**
 
 ## Safety by default
 
@@ -63,3 +73,15 @@ python3 -m unittest discover -s tests -v
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for releases. MIT licensed; see [LICENSE](LICENSE).
+
+## Sources
+
+This workflow is inspired by Meta's distinction between temporary catching tests and permanent
+hardening tests, together with research suggesting that test quantity alone is a weak signal of
+coding-agent success. Codex Herdr turns those ideas into an enforceable Git-based workflow for Sol
+and Luna.
+
+- [Rethinking the Value of Agent-Generated Tests](https://arxiv.org/abs/2602.07900)
+- [The Death of Traditional Testing: JiTTesting at Meta](https://engineering.fb.com/2026/02/11/developer-tools/the-death-of-traditional-testing-agentic-development-jit-testing-revival/)
+- [Mutation-Guided LLM-based Test Generation at Meta](https://arxiv.org/abs/2501.12862)
+- [SWE-Mutation: Can LLMs Generate Reliable Test Suites?](https://arxiv.org/abs/2605.22175)

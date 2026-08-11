@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added a concise explanation of the Test Distillation motivation and its research inspiration.
+- Updated the repository banner to feature the Codex mascot guiding three agent paths through the
+  deterministic gate.
+
 ## 1.0.0 — 2026-08-11
 
 First public release.
