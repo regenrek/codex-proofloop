@@ -1,0 +1,4 @@
+interface:
+  display_name: "Proofloop Herdr: Sol, Luna, Fable + Planr"
+  short_description: "Planr work with test distillation"
+  default_prompt: "Use $proofloop-herdr-sol-luna-fable-planr to run this Planr-backed task with the deterministic BUILD/HARDEN test gate."

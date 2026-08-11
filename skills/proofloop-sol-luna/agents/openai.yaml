@@ -1,0 +1,4 @@
+interface:
+  display_name: "Proofloop: Sol + Luna"
+  short_description: "Native test distillation without Herdr"
+  default_prompt: "Use $proofloop-sol-luna to run this task with the deterministic BUILD/HARDEN test gate and optional bounded Luna review."

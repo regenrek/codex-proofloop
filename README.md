@@ -1,85 +1,94 @@
-# Codex Herdr Orchestrator
+# Proofloop
 
-![Codex Herdr Orchestrator banner](assets/codex-herdr-orchestrator-banner.png)
+![Proofloop banner](assets/proofloop-banner.png)
 
-Three ready-to-use Codex skills for running focused, bounded workflows in Herdr.
-
-One agent writes. Optional agents watch or review. Nothing runs behind your back.
-
-## Why this exists
-
-Coding agents often create useful tests and probes while exploring a change. The problem starts when
-every temporary observation becomes a permanent repository asset.
-
-Codex Herdr treats agent-generated tests as temporary by default. A test stays only when it protects a
-unique, accepted behavior that existing tests do not.
+Proofloop keeps coding-agent tests useful without letting every debugging experiment become permanent.
 
 `BUILD → ACCEPT → HARDEN → DISTILL`
 
 **Catch aggressively. Commit reluctantly.**
 
-## Choose your version
+## Why this exists
 
-| Directory | Includes | Choose this when |
+Sol may create temporary tests, probes, scripts, fixtures, and diagnostics while exploring a change.
+Those can be valuable in the moment, but they should not automatically live in your repository
+forever.
+
+Proofloop makes them ephemeral by default. A test stays only when it protects a unique, accepted,
+observable behavior that existing tests do not already cover.
+
+## Choose a skill
+
+| Skill | Includes | Needs Herdr? |
 | --- | --- | --- |
-| `codex-herdr-sol-luna/` | Sol + Luna | You want the smallest setup |
-| `codex-herdr-sol-luna-fable/` | Sol + Luna + Fable | You also want one independent Fable review |
-| `codex-herdr-sol-luna-fable-planr/` | Sol + Luna + Fable + Planr | You manage tasks and evidence with Planr |
+| `proofloop-sol-luna` | Native Sol + optional bounded Luna review | No |
+| `proofloop-herdr-sol-luna` | Sol + optional Luna sentinel or review | Yes |
+| `proofloop-herdr-sol-luna-fable` | Sol + Luna + one bounded Fable review | Yes |
+| `proofloop-herdr-sol-luna-fable-planr` | Sol + Luna + Fable + Planr task evidence | Yes |
 
-Each directory works on its own. Copy only the one you need.
+Each directory under `skills/` is standalone. Install only the one you need.
 
 ## How it works
 
-1. **Sol builds.** Sol is the only agent allowed to change your project.
-2. **Luna watches when invited.** The optional sentinel can stop unsafe or runaway work. It has a
-   deadline and shuts down with the run.
-3. **Tests stay lean.** Temporary probes do not become permanent tests automatically. Only useful,
-   stable checks are kept after the behavior is accepted.
-4. **Review stays bounded.** Fable and Planr are used only by the variants that include them.
-5. **You get a clean handoff.** Changes, validation, and important run evidence are summarized at the
-   end.
+1. **BUILD:** Sol implements the candidate. Temporary probes stay in a run-owned evidence folder;
+   tracked tests cannot be changed.
+2. **ACCEPT:** Deterministic checks or a human accept the behavior.
+3. **HARDEN:** Only tests with explicit evidence and a small declared budget may enter the permanent
+   suite.
+4. **DISTILL:** Keep the smallest stable test that protects the invariant. Drop the rest.
+
+The deterministic gate uses Git to notice changes even when files were created by shell commands. It
+preserves changes that were already present before the run and works with Sol alone. Luna remains
+optional.
+
+## Install with `npx skills`
+
+Browse and choose interactively:
+
+```bash
+npx skills add regenrek/codex-proofloop
+```
+
+Or install one skill directly for Codex:
+
+```bash
+npx skills add regenrek/codex-proofloop --skill proofloop-sol-luna -g -a codex -y
+```
+
+For the smallest Herdr setup:
+
+```bash
+npx skills add regenrek/codex-proofloop --skill proofloop-herdr-sol-luna -g -a codex -y
+```
+
+You can also clone the repository and copy any single directory from `skills/` into your skills
+folder. Installing a skill starts no watcher, daemon, heartbeat, or background service.
 
 ## Safety by default
 
-- Installing a skill starts no watcher, daemon, or background service.
-- Luna is optional and read-only.
-- Sol remains the single implementation writer.
-- The sentinel is opt-in, tied to one run, and time-bounded.
-- The test gate uses Git to detect changes, including files created from the shell.
-- Existing user changes are preserved as the starting point.
-
-## Install
-
-Clone this repository, then copy one variant into your Codex skills folder:
-
-```bash
-cp -R codex-herdr-sol-luna ~/.agents/skills/
-```
-
-Then ask Codex to use it:
-
-```text
-Use $codex-herdr-sol-luna for this task.
-```
-
-Herdr must already be installed for pane-based workflows. The skills themselves add no Python
-packages or background services.
+- Sol is the only implementation writer.
+- Luna and Fable are read-only and optional.
+- The native skill has no Herdr dependency or sentinel runtime.
+- The Herdr sentinel is opt-in, attached to one run, and time-bounded.
+- BUILD defaults to zero permanent test changes.
+- A full test suite is never guessed or used as the normal iteration command.
+- Credential paths are excluded from evidence and baseline snapshots.
 
 ## Development
 
 ```bash
-python3 -m compileall codex-herdr-sol-luna/scripts codex-herdr-sol-luna-fable/scripts codex-herdr-sol-luna-fable-planr/scripts
+python3 -m compileall skills/*/scripts
 python3 -m unittest discover -s tests -v
+npx skills add . --list
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for releases. MIT licensed; see [LICENSE](LICENSE).
 
 ## Sources
 
-This workflow is inspired by Meta's distinction between temporary catching tests and permanent
-hardening tests, together with research suggesting that test quantity alone is a weak signal of
-coding-agent success. Codex Herdr turns those ideas into an enforceable Git-based workflow for Sol
-and Luna.
+Proofloop is inspired by Meta's distinction between temporary catching tests and permanent hardening
+tests, together with research suggesting that test quantity alone is a weak signal of coding-agent
+success.
 
 - [Rethinking the Value of Agent-Generated Tests](https://arxiv.org/abs/2602.07900)
 - [The Death of Traditional Testing: JiTTesting at Meta](https://engineering.fb.com/2026/02/11/developer-tools/the-death-of-traditional-testing-agentic-development-jit-testing-revival/)

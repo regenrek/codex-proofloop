@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VARIANT = ROOT / "codex-herdr-sol-luna"
+VARIANT = ROOT / "skills" / "proofloop-herdr-sol-luna"
 SCRIPT = VARIANT / "scripts" / "silent_sentinel.py"
 GATE = VARIANT / "scripts" / "test_distillation_gate.py"
 
@@ -51,14 +51,14 @@ class SentinelRuntimeTests(unittest.TestCase):
         contract["project_profile"] = "profile.json"
         contract["luna_mode"] = "silent-sentinel" if selected else None
         contract["allowed_paths"] = ["src/**"]
-        contract["test_policy"]["baseline_record"] = ".codex-herdr/evidence/run/test-baseline.json"
-        contract["test_policy"]["result_record"] = ".codex-herdr/evidence/run/test-gate.json"
-        contract["test_policy"]["ephemeral_directory"] = ".codex-herdr/evidence/run/probes"
-        contract["test_policy"]["admission_record"] = ".codex-herdr/evidence/run/test-admission.json"
-        contract["evidence"]["directory"] = ".codex-herdr/evidence/run"
-        contract["cleanup"]["ownership_record"] = ".codex-herdr/evidence/run/ownership.json"
-        contract["cleanup"]["sentinel_process_record"] = ".codex-herdr/evidence/run/process.json"
-        contract["cleanup"]["sentinel_state_record"] = ".codex-herdr/evidence/run/state.json"
+        contract["test_policy"]["baseline_record"] = ".proofloop/evidence/run/test-baseline.json"
+        contract["test_policy"]["result_record"] = ".proofloop/evidence/run/test-gate.json"
+        contract["test_policy"]["ephemeral_directory"] = ".proofloop/evidence/run/probes"
+        contract["test_policy"]["admission_record"] = ".proofloop/evidence/run/test-admission.json"
+        contract["evidence"]["directory"] = ".proofloop/evidence/run"
+        contract["cleanup"]["ownership_record"] = ".proofloop/evidence/run/ownership.json"
+        contract["cleanup"]["sentinel_process_record"] = ".proofloop/evidence/run/process.json"
+        contract["cleanup"]["sentinel_state_record"] = ".proofloop/evidence/run/state.json"
         contract_path = root / "contract.json"
         write_json(contract_path, contract)
 
@@ -102,7 +102,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             result = self.run_sentinel(root, profile, contract, session)
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertEqual("", result.stdout)
-            process = load_json(root / ".codex-herdr" / "evidence" / "run" / "process.json")
+            process = load_json(root / ".proofloop" / "evidence" / "run" / "process.json")
             retired_path, state = retired_state(root, process)
             self.assertEqual("stopped", process["status"])
             self.assertEqual("once-complete", process["exit_reason"])
@@ -110,7 +110,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             self.assertIsNotNone(process["state_retired_at_utc"])
             self.assertIsNone(process["state_retirement_error"])
             self.assertTrue(retired_path.name.startswith("state.retired."))
-            self.assertFalse((root / ".codex-herdr" / "evidence" / "run" / "state.json").exists())
+            self.assertFalse((root / ".proofloop" / "evidence" / "run" / "state.json").exists())
             self.assertEqual("once-complete", state["sentinel_exit_reason"])
             self.assertEqual(process["state_retired_at_utc"], state["retired_at_utc"])
             self.assertEqual([], state["events"])
@@ -120,7 +120,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             self.assertEqual(1, restarted.returncode)
             self.assertIn("sentinel run is already finalized", restarted.stderr)
             self.assertEqual(archived_before, retired_path.read_bytes())
-            self.assertFalse((root / ".codex-herdr" / "evidence" / "run" / "state.json").exists())
+            self.assertFalse((root / ".proofloop" / "evidence" / "run" / "state.json").exists())
 
     def test_critical_events_are_deduplicated_into_one_fallback_message(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -157,7 +157,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertEqual(1, result.stdout.count("[LUNA-SENTINEL][STOP]"))
             self.assertIn("PATCH_BUDGET", result.stdout)
-            process = load_json(root / ".codex-herdr" / "evidence" / "run" / "process.json")
+            process = load_json(root / ".proofloop" / "evidence" / "run" / "process.json")
             self.assertEqual("mandatory-stop", process["exit_reason"])
 
     def test_runtime_deadline_cannot_be_reset_by_restart(self) -> None:
@@ -169,10 +169,10 @@ class SentinelRuntimeTests(unittest.TestCase):
                 json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
             write_json(
-                root / ".codex-herdr" / "evidence" / "run" / "state.json",
+                root / ".proofloop" / "evidence" / "run" / "state.json",
                 {
                     "schema_version": 1,
-                    "kind": "codex-herdr/silent-sentinel-state",
+                    "kind": "proofloop/silent-sentinel-state",
                     "contract_digest": digest,
                     "session_id": None,
                     "offset": 0,
@@ -188,7 +188,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             result = self.run_sentinel(root, profile, contract_path, session)
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertEqual(1, result.stdout.count("RUNTIME_DEADLINE"))
-            process = load_json(root / ".codex-herdr" / "evidence" / "run" / "process.json")
+            process = load_json(root / ".proofloop" / "evidence" / "run" / "process.json")
             self.assertEqual("mandatory-stop", process["exit_reason"])
 
     def test_null_mode_refuses_to_start_or_write_runtime_records(self) -> None:
@@ -198,7 +198,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             result = self.run_sentinel(root, profile, contract, session)
             self.assertEqual(1, result.returncode)
             self.assertIn("must explicitly select 'silent-sentinel'", result.stderr)
-            self.assertFalse((root / ".codex-herdr" / "evidence" / "run" / "process.json").exists())
+            self.assertFalse((root / ".proofloop" / "evidence" / "run" / "process.json").exists())
 
     def test_shared_gate_catches_shell_created_test(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -255,7 +255,7 @@ class SentinelRuntimeTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            process_record = root / ".codex-herdr" / "evidence" / "run" / "process.json"
+            process_record = root / ".proofloop" / "evidence" / "run" / "process.json"
             for _ in range(40):
                 if process_record.exists():
                     break
@@ -272,7 +272,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             retired_path, state = retired_state(root, record)
             self.assertTrue(retired_path.exists())
             self.assertEqual("sigterm", state["sentinel_exit_reason"])
-            self.assertFalse((root / ".codex-herdr" / "evidence" / "run" / "state.json").exists())
+            self.assertFalse((root / ".proofloop" / "evidence" / "run" / "state.json").exists())
 
     def test_startup_working_without_session_then_idle_remains_pending(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -294,7 +294,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             fake_herdr.chmod(0o755)
             environment = dict(os.environ)
             environment["FAKE_COUNTER"] = str(
-                root / ".codex-herdr" / "evidence" / "run" / "herdr-counter"
+                root / ".proofloop" / "evidence" / "run" / "herdr-counter"
             )
             environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
             process = subprocess.Popen(
@@ -317,7 +317,7 @@ class SentinelRuntimeTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            process_record = root / ".codex-herdr" / "evidence" / "run" / "process.json"
+            process_record = root / ".proofloop" / "evidence" / "run" / "process.json"
             for _ in range(40):
                 if process_record.exists():
                     break
@@ -379,7 +379,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             fake_herdr.chmod(0o755)
             environment = dict(os.environ)
             environment["HOME"] = str(fake_home)
-            environment["FAKE_COUNTER"] = str(root / ".codex-herdr" / "evidence" / "run" / "herdr-counter")
+            environment["FAKE_COUNTER"] = str(root / ".proofloop" / "evidence" / "run" / "herdr-counter")
             environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
             result = subprocess.run(
                 [
@@ -404,7 +404,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertEqual("", result.stdout)
-            process = load_json(root / ".codex-herdr" / "evidence" / "run" / "process.json")
+            process = load_json(root / ".proofloop" / "evidence" / "run" / "process.json")
             _retired_path, state = retired_state(root, process)
             self.assertEqual("target-settled", process["exit_reason"])
             self.assertIn("TARGET_SETTLED", state["event_codes"])
@@ -419,13 +419,13 @@ class SentinelRuntimeTests(unittest.TestCase):
                 json.dumps({"type": "event_msg", "payload": {"type": "agent_message"}}) + "\n",
                 encoding="utf-8",
             )
-            fake_bin = root / "bin"; fake_bin.mkdir(); prompt_log = root / ".codex-herdr" / "evidence" / "run" / "prompted"
+            fake_bin = root / "bin"; fake_bin.mkdir(); prompt_log = root / ".proofloop" / "evidence" / "run" / "prompted"
             fake_herdr = fake_bin / "herdr"
             fake_herdr.write_text("#!/bin/sh\nif test \"$2\" = prompt; then touch \"$PROMPT_LOG\"; fi\nprintf '%s\\n' '{\"result\":{\"agent\":{\"agent_status\":\"done\",\"agent_session\":{\"value\":\"settled-session\"}}}}'\n", encoding="utf-8"); fake_herdr.chmod(0o755)
             environment = dict(os.environ); environment["HOME"] = str(fake_home); environment["PROMPT_LOG"] = str(prompt_log); environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
             result = subprocess.run([sys.executable, str(SCRIPT), "--target", "settled", "--project", str(root), "--project-profile", str(profile), "--run-contract", str(contract), "--interval", "10"], env=environment, check=False, capture_output=True, text=True, timeout=5)
             self.assertEqual(2, result.returncode, result.stderr); self.assertFalse(prompt_log.exists())
-            process = load_json(root / ".codex-herdr" / "evidence" / "run" / "process.json")
+            process = load_json(root / ".proofloop" / "evidence" / "run" / "process.json")
             self.assertEqual("gate-failed-after-settlement", process["exit_reason"])
 
 

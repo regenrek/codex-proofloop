@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VARIANT = ROOT / "codex-herdr-sol-luna"
+VARIANT = ROOT / "skills" / "proofloop-sol-luna"
 GATE = VARIANT / "scripts" / "test_distillation_gate.py"
 
 
@@ -40,7 +40,7 @@ class Fixture:
         self.project.mkdir(parents=True, exist_ok=True)
         subprocess.run(["git", "init", "-q", str(root)], check=True)
         git(root, "config", "user.email", "test@example.invalid"); git(root, "config", "user.name", "Test")
-        (root / ".gitignore").write_text(".codex-herdr/\n", encoding="utf-8")
+        (root / ".gitignore").write_text(".proofloop/\n", encoding="utf-8")
         (self.project / "src").mkdir(); (self.project / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
         self.profile = read(VARIANT / "assets" / "project-profile.template.json")
         self.contract = read(VARIANT / "assets" / "run-contract.template.json")
@@ -48,7 +48,7 @@ class Fixture:
         self.contract["task"]["id"] = "gate-fixture"
         self.contract["project_profile"] = "policy/profile.json"
         self.contract["allowed_paths"] = ["src/**", "tests/**", "test_*.*", "*_test.*", "*.test.*", "*.spec.*"]
-        base = ".codex-herdr/evidence/run"
+        base = ".proofloop/evidence/run"
         self.contract["evidence"]["directory"] = base
         self.contract["test_policy"].update({"baseline_record": f"{base}/baseline.json", "result_record": f"{base}/result.json", "ephemeral_directory": f"{base}/probes", "admission_record": f"{base}/admission.json"})
         self.profile_path = self.project / "policy" / "profile.json"; self.contract_path = self.project / "policy" / "contract.json"

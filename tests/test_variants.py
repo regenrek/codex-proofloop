@@ -10,10 +10,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VARIANTS = {
-    "codex-herdr-sol-luna": {"fable": False, "planr": False},
-    "codex-herdr-sol-luna-fable": {"fable": True, "planr": False},
-    "codex-herdr-sol-luna-fable-planr": {"fable": True, "planr": True},
+    "proofloop-sol-luna": {"herdr": False, "fable": False, "planr": False},
+    "proofloop-herdr-sol-luna": {"herdr": True, "fable": False, "planr": False},
+    "proofloop-herdr-sol-luna-fable": {"herdr": True, "fable": True, "planr": False},
+    "proofloop-herdr-sol-luna-fable-planr": {"herdr": True, "fable": True, "planr": True},
 }
+
+
+def variant_dir(variant: str) -> Path:
+    return ROOT / "skills" / variant
 
 
 def load_json(path: Path) -> dict:
@@ -22,7 +27,7 @@ def load_json(path: Path) -> dict:
 
 
 def load_validator(variant: str):
-    path = ROOT / variant / "scripts" / "validate_config.py"
+    path = variant_dir(variant) / "scripts" / "validate_config.py"
     spec = importlib.util.spec_from_file_location(f"validate_{variant.replace('-', '_')}", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -43,15 +48,15 @@ class VariantTests(unittest.TestCase):
     def test_skill_names_match_their_directories(self) -> None:
         for variant in VARIANTS:
             with self.subTest(variant=variant):
-                skill = (ROOT / variant / "SKILL.md").read_text(encoding="utf-8")
-                metadata = (ROOT / variant / "agents" / "openai.yaml").read_text(encoding="utf-8")
+                skill = (variant_dir(variant) / "SKILL.md").read_text(encoding="utf-8")
+                metadata = (variant_dir(variant) / "agents" / "openai.yaml").read_text(encoding="utf-8")
                 self.assertIn(f"name: {variant}\n", skill)
                 self.assertIn(f"${variant}", metadata)
 
     def test_each_variant_validates_its_shipped_documents(self) -> None:
         for variant, features in VARIANTS.items():
             with self.subTest(variant=variant):
-                directory = ROOT / variant
+                directory = variant_dir(variant)
                 validator = load_validator(variant)
                 documents = [
                     directory / "assets" / "project-profile.template.json",
@@ -66,7 +71,7 @@ class VariantTests(unittest.TestCase):
     def test_cli_works_in_every_standalone_directory(self) -> None:
         for variant in VARIANTS:
             with self.subTest(variant=variant):
-                directory = ROOT / variant
+                directory = variant_dir(variant)
                 result = subprocess.run(
                     [
                         sys.executable,
@@ -85,16 +90,18 @@ class VariantTests(unittest.TestCase):
     def test_profiles_expose_only_the_selected_agents(self) -> None:
         for variant, features in VARIANTS.items():
             with self.subTest(variant=variant):
-                profile = load_json(ROOT / variant / "assets" / "project-profile.template.json")
+                profile = load_json(variant_dir(variant) / "assets" / "project-profile.template.json")
                 expected_roles = {"sol", "luna", "fable"} if features["fable"] else {"sol", "luna"}
                 self.assertEqual(expected_roles, set(profile["roles"]))
-                contract = load_json(ROOT / variant / "assets" / "run-contract.template.json")
+                contract = load_json(variant_dir(variant) / "assets" / "run-contract.template.json")
                 self.assertEqual(features["fable"], "fable_stage" in contract)
 
-    def test_sentinel_is_off_by_default_silent_and_bounded(self) -> None:
-        for variant in VARIANTS:
+    def test_herdr_sentinel_is_off_by_default_silent_and_bounded(self) -> None:
+        for variant, features in VARIANTS.items():
+            if not features["herdr"]:
+                continue
             with self.subTest(variant=variant):
-                directory = ROOT / variant
+                directory = variant_dir(variant)
                 profile = load_json(directory / "assets" / "project-profile.template.json")
                 contract = load_json(directory / "assets" / "run-contract.template.json")
                 policy = profile["sentinel_policy"]
@@ -123,21 +130,34 @@ class VariantTests(unittest.TestCase):
 
     def test_variants_ship_one_identical_sentinel_runtime(self) -> None:
         scripts = [
-            (ROOT / variant / "scripts" / "silent_sentinel.py").read_bytes()
-            for variant in VARIANTS
+            (variant_dir(variant) / "scripts" / "silent_sentinel.py").read_bytes()
+            for variant, features in VARIANTS.items()
+            if features["herdr"]
         ]
         self.assertTrue(all(script == scripts[0] for script in scripts[1:]))
 
     def test_variants_ship_one_identical_test_gate_runtime(self) -> None:
-        scripts = [(ROOT / variant / "scripts" / "test_distillation_gate.py").read_bytes() for variant in VARIANTS]
+        scripts = [(variant_dir(variant) / "scripts" / "test_distillation_gate.py").read_bytes() for variant in VARIANTS]
         self.assertTrue(all(script == scripts[0] for script in scripts[1:]))
-        references = [(ROOT / variant / "references" / "testing.md").read_bytes() for variant in VARIANTS]
+        references = [(variant_dir(variant) / "references" / "testing.md").read_bytes() for variant in VARIANTS]
         self.assertTrue(all(item == references[0] for item in references[1:]))
 
+    def test_native_variant_has_no_orchestrator_runtime(self) -> None:
+        directory = variant_dir("proofloop-sol-luna")
+        profile = load_json(directory / "assets" / "project-profile.template.json")
+        contract = load_json(directory / "assets" / "run-contract.template.json")
+        self.assertNotIn("sentinel_policy", profile)
+        self.assertNotIn("pane_policy", profile)
+        self.assertNotIn("cleanup", contract)
+        self.assertEqual(["bounded-verifier"], profile["roles"]["luna"]["allowed_modes"])
+        self.assertFalse((directory / "scripts" / "silent_sentinel.py").exists())
+
     def test_sentinel_packet_requires_the_exact_process_record_path(self) -> None:
-        for variant in VARIANTS:
+        for variant, features in VARIANTS.items():
+            if not features["herdr"]:
+                continue
             with self.subTest(variant=variant):
-                directory = ROOT / variant
+                directory = variant_dir(variant)
                 skill = (directory / "SKILL.md").read_text(encoding="utf-8")
                 orchestration = (directory / "references" / "orchestration.md").read_text(
                     encoding="utf-8"
@@ -149,41 +169,48 @@ class VariantTests(unittest.TestCase):
                 self.assertIn("Do not substitute, shorten, or infer a filename", orchestration)
 
     def test_optional_tool_names_are_absent_from_smaller_variants(self) -> None:
-        sol_luna_text = variant_text(ROOT / "codex-herdr-sol-luna")
+        native_text = variant_text(variant_dir("proofloop-sol-luna"))
+        self.assertNotIn("fable", native_text)
+        self.assertNotIn("planr", native_text)
+
+        sol_luna_text = variant_text(variant_dir("proofloop-herdr-sol-luna"))
         self.assertNotIn("fable", sol_luna_text)
         self.assertNotIn("planr", sol_luna_text)
 
-        fable_text = variant_text(ROOT / "codex-herdr-sol-luna-fable")
+        fable_text = variant_text(variant_dir("proofloop-herdr-sol-luna-fable"))
         self.assertNotIn("planr", fable_text)
 
     def test_safety_invariants_are_enforced_by_every_validator(self) -> None:
         for variant, features in VARIANTS.items():
             with self.subTest(variant=variant):
-                directory = ROOT / variant
+                directory = variant_dir(variant)
                 validator = load_validator(variant)
                 profile = load_json(directory / "assets" / "project-profile.template.json")
                 profile["roles"]["sol"]["sole_writer"] = False
                 profile["roles"]["luna"]["read_only"] = False
-                profile["pane_policy"]["close_recorded_only"] = False
-                profile["sentinel_policy"]["healthy_notifications"] = True
-                profile["sentinel_policy"]["max_runtime_minutes"] = (
-                    profile["budgets"]["hard_stop_minutes"] + 1
-                )
+                if features["herdr"]:
+                    profile["pane_policy"]["close_recorded_only"] = False
+                    profile["sentinel_policy"]["healthy_notifications"] = True
+                    profile["sentinel_policy"]["max_runtime_minutes"] = (
+                        profile["budgets"]["hard_stop_minutes"] + 1
+                    )
                 if features["fable"]:
                     profile["roles"]["fable"]["max_turns_per_hypothesis"] = 2
                 errors = validator.validate_document(profile)
                 self.assertTrue(any("sole_writer" in error for error in errors))
                 self.assertTrue(any("luna.read_only" in error for error in errors))
-                self.assertTrue(any("close_recorded_only" in error for error in errors))
-                self.assertTrue(any("healthy_notifications" in error for error in errors))
-                self.assertTrue(any("max_runtime_minutes" in error for error in errors))
+                if features["herdr"]:
+                    self.assertTrue(any("close_recorded_only" in error for error in errors))
+                    self.assertTrue(any("healthy_notifications" in error for error in errors))
+                    self.assertTrue(any("max_runtime_minutes" in error for error in errors))
                 if features["fable"]:
                     self.assertTrue(any("max_turns_per_hypothesis" in error for error in errors))
 
-                contract = load_json(directory / "assets" / "run-contract.template.json")
-                contract["cleanup"]["stop_recorded_sentinel_process"] = False
-                errors = validator.validate_document(contract)
-                self.assertTrue(any("stop_recorded_sentinel_process" in error for error in errors))
+                if features["herdr"]:
+                    contract = load_json(directory / "assets" / "run-contract.template.json")
+                    contract["cleanup"]["stop_recorded_sentinel_process"] = False
+                    errors = validator.validate_document(contract)
+                    self.assertTrue(any("stop_recorded_sentinel_process" in error for error in errors))
 
 
 if __name__ == "__main__":

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Renamed the product to Proofloop and moved every standalone skill under `skills/`.
+- Added `proofloop-sol-luna`, a native Codex variant with no Herdr dependency, sentinel, pane
+  lifecycle, heartbeat, or background process.
+- Made all four variants discoverable and installable through `npx skills`.
 - Added a concise explanation of the Test Distillation motivation and its research inspiration.
 - Updated the repository banner to feature the Codex mascot guiding three agent paths through the
   deterministic gate.
