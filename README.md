@@ -12,6 +12,10 @@ Three standalone Codex skills for running clear, bounded multi-agent workflows i
 
 Each directory is complete by itself. Pick one; you do not need the other tools or variants.
 
+Installing a skill starts no watcher or background process. Luna is off by default. A silent
+sentinel runs only when a run contract explicitly selects it, and it must stop at settlement or its
+deadline.
+
 ## Install
 
 Copy the directory you want into your Codex skills folder. For example:

@@ -19,12 +19,15 @@
 - Stop conditions: `<scope change, failed hypothesis, second writer, timeout, manual boundary, etc.>`
 - Manual/human acceptance: `<owner, required yes/no, and explicit criteria>`
 - Cleanup: reuse only suitable panes; record workflow-created pane IDs; close only recorded
-  workflow-created panes; stop workflow sessions in reused panes; leave pre-existing panes open.
+  workflow-created panes; stop workflow sessions in reused panes; stop every recorded sentinel
+  process; leave pre-existing panes open.
 
 ## Optional specialists
 
-- Luna Max: disabled unless selected by the project profile as a read-only heartbeat sentinel, fresh
-  bounded verifier, or fresh interactive operator. Luna may write only declared external evidence.
+- Luna Max: off unless the run contract explicitly selects a read-only silent sentinel, fresh
+  bounded verifier, or fresh interactive operator. A sentinel stays silent while healthy, has a
+  recorded process and deadline, and uses user messages only as a critical fallback. Luna may write
+  only declared external evidence.
 - Fable: at most one read-only semantic challenge before implementation or final review afterward
   per hypothesis. Fable is not a writer.
 - Human: owns subjective, experiential, safety, or other declared manual acceptance.

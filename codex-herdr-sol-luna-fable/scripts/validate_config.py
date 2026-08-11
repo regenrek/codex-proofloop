@@ -12,7 +12,7 @@ from typing import Any
 
 PROFILE_KIND = "codex-herdr-sol-luna-fable/project-profile"
 CONTRACT_KIND = "codex-herdr-sol-luna-fable/run-contract"
-LUNA_MODES = {"heartbeat-sentinel", "bounded-verifier", "interactive-operator"}
+LUNA_MODES = {"silent-sentinel", "bounded-verifier", "interactive-operator"}
 FABLE_STAGES = {"pre-implementation", "final-review"}
 
 
@@ -92,8 +92,8 @@ def _relative_list(value: Any, path: str, errors: list[str]) -> list[str]:
 
 def _base(document: dict[str, Any], errors: list[str]) -> None:
     _integer(document.get("schema_version"), "$.schema_version", errors, 1)
-    if document.get("schema_version") != 1:
-        errors.append("$.schema_version: only version 1 is supported")
+    if document.get("schema_version") != 2:
+        errors.append("$.schema_version: only version 2 is supported")
     _string(document.get("kind"), "$.kind", errors)
 
 
@@ -124,10 +124,34 @@ def _manual_acceptance(value: Any, path: str, errors: list[str]) -> None:
         errors.append(f"{path}.criteria: required manual acceptance needs explicit criteria")
 
 
+def _sentinel_policy(value: Any, hard_stop: Any, errors: list[str]) -> None:
+    path = "$.sentinel_policy"
+    item = _object(value, path, errors)
+    required = {
+        "default_mode", "healthy_notifications", "deduplicate_events", "user_message_fallback",
+        "max_runtime_minutes", "exit_after_stop", "record_process",
+    }
+    _keys(item, path, required, errors)
+    if item.get("default_mode") != "off":
+        errors.append(f"{path}.default_mode: must be 'off'")
+    if _boolean(item.get("healthy_notifications"), f"{path}.healthy_notifications", errors) is not False:
+        errors.append(f"{path}.healthy_notifications: must be false")
+    if _boolean(item.get("deduplicate_events"), f"{path}.deduplicate_events", errors) is not True:
+        errors.append(f"{path}.deduplicate_events: must be true")
+    if item.get("user_message_fallback") != "critical-only":
+        errors.append(f"{path}.user_message_fallback: must be 'critical-only'")
+    maximum = _integer(item.get("max_runtime_minutes"), f"{path}.max_runtime_minutes", errors, 1)
+    if maximum is not None and isinstance(hard_stop, int) and not isinstance(hard_stop, bool) and maximum > hard_stop:
+        errors.append(f"{path}.max_runtime_minutes: must not exceed $.budgets.hard_stop_minutes")
+    for field in ("exit_after_stop", "record_process"):
+        if _boolean(item.get(field), f"{path}.{field}", errors) is not True:
+            errors.append(f"{path}.{field}: must be true")
+
+
 def _profile(document: dict[str, Any], errors: list[str]) -> None:
     required = {
         "schema_version", "kind", "project", "roles", "paths", "validation", "evidence",
-        "budgets", "stop_conditions", "manual_acceptance", "pane_policy",
+        "budgets", "stop_conditions", "manual_acceptance", "pane_policy", "sentinel_policy",
     }
     _keys(document, "$", required, errors)
     _base(document, errors)
@@ -185,6 +209,9 @@ def _profile(document: dict[str, Any], errors: list[str]) -> None:
 
     _evidence(document.get("evidence"), "$.evidence", errors)
     _budgets(document.get("budgets"), "$.budgets", errors)
+    budgets = document.get("budgets")
+    hard_stop = budgets.get("hard_stop_minutes") if isinstance(budgets, dict) else None
+    _sentinel_policy(document.get("sentinel_policy"), hard_stop, errors)
     _strings(document.get("stop_conditions"), "$.stop_conditions", errors)
     _manual_acceptance(document.get("manual_acceptance"), "$.manual_acceptance", errors)
 
@@ -240,9 +267,10 @@ def _contract(document: dict[str, Any], errors: list[str]) -> None:
     _manual_acceptance(document.get("manual_acceptance"), "$.manual_acceptance", errors)
 
     cleanup = _object(document.get("cleanup"), "$.cleanup", errors)
-    _keys(cleanup, "$.cleanup", {"ownership_record", "close_recorded_workflow_panes", "leave_preexisting_panes_open", "retire_sentinel_state"}, errors)
+    _keys(cleanup, "$.cleanup", {"ownership_record", "sentinel_process_record", "stop_recorded_sentinel_process", "close_recorded_workflow_panes", "leave_preexisting_panes_open", "retire_sentinel_state"}, errors)
     _relative(cleanup.get("ownership_record"), "$.cleanup.ownership_record", errors)
-    for field in ("close_recorded_workflow_panes", "leave_preexisting_panes_open", "retire_sentinel_state"):
+    _relative(cleanup.get("sentinel_process_record"), "$.cleanup.sentinel_process_record", errors)
+    for field in ("stop_recorded_sentinel_process", "close_recorded_workflow_panes", "leave_preexisting_panes_open", "retire_sentinel_state"):
         if _boolean(cleanup.get(field), f"$.cleanup.{field}", errors) is False:
             errors.append(f"$.cleanup.{field}: must be true")
 

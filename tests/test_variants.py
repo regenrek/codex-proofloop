@@ -90,6 +90,31 @@ class VariantTests(unittest.TestCase):
                 contract = load_json(ROOT / variant / "assets" / "run-contract.template.json")
                 self.assertEqual(features["fable"], "fable_stage" in contract)
 
+    def test_sentinel_is_off_by_default_silent_and_bounded(self) -> None:
+        for variant in VARIANTS:
+            with self.subTest(variant=variant):
+                directory = ROOT / variant
+                profile = load_json(directory / "assets" / "project-profile.template.json")
+                contract = load_json(directory / "assets" / "run-contract.template.json")
+                policy = profile["sentinel_policy"]
+                self.assertEqual(2, profile["schema_version"])
+                self.assertEqual(2, contract["schema_version"])
+                self.assertIn("silent-sentinel", profile["roles"]["luna"]["allowed_modes"])
+                self.assertNotIn("heartbeat-sentinel", profile["roles"]["luna"]["allowed_modes"])
+                self.assertEqual("off", policy["default_mode"])
+                self.assertFalse(policy["healthy_notifications"])
+                self.assertTrue(policy["deduplicate_events"])
+                self.assertEqual("critical-only", policy["user_message_fallback"])
+                self.assertLessEqual(policy["max_runtime_minutes"], profile["budgets"]["hard_stop_minutes"])
+                self.assertTrue(policy["exit_after_stop"])
+                self.assertTrue(policy["record_process"])
+                self.assertIsNone(contract["luna_mode"])
+                self.assertTrue(contract["cleanup"]["stop_recorded_sentinel_process"])
+                self.assertFalse(any(
+                    "heartbeat" in path.name.lower() or "watcher" in path.name.lower()
+                    for path in (directory / "scripts").iterdir()
+                ))
+
     def test_optional_tool_names_are_absent_from_smaller_variants(self) -> None:
         sol_luna_text = variant_text(ROOT / "codex-herdr-sol-luna")
         self.assertNotIn("fable", sol_luna_text)
@@ -107,14 +132,25 @@ class VariantTests(unittest.TestCase):
                 profile["roles"]["sol"]["sole_writer"] = False
                 profile["roles"]["luna"]["read_only"] = False
                 profile["pane_policy"]["close_recorded_only"] = False
+                profile["sentinel_policy"]["healthy_notifications"] = True
+                profile["sentinel_policy"]["max_runtime_minutes"] = (
+                    profile["budgets"]["hard_stop_minutes"] + 1
+                )
                 if features["fable"]:
                     profile["roles"]["fable"]["max_turns_per_hypothesis"] = 2
                 errors = validator.validate_document(profile)
                 self.assertTrue(any("sole_writer" in error for error in errors))
                 self.assertTrue(any("luna.read_only" in error for error in errors))
                 self.assertTrue(any("close_recorded_only" in error for error in errors))
+                self.assertTrue(any("healthy_notifications" in error for error in errors))
+                self.assertTrue(any("max_runtime_minutes" in error for error in errors))
                 if features["fable"]:
                     self.assertTrue(any("max_turns_per_hypothesis" in error for error in errors))
+
+                contract = load_json(directory / "assets" / "run-contract.template.json")
+                contract["cleanup"]["stop_recorded_sentinel_process"] = False
+                errors = validator.validate_document(contract)
+                self.assertTrue(any("stop_recorded_sentinel_process" in error for error in errors))
 
 
 if __name__ == "__main__":

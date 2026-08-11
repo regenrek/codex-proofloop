@@ -6,6 +6,7 @@ Use this reference only after the project profile and run contract validate.
 
 - [Role invariants](#role-invariants)
 - [Mode selection](#mode-selection)
+- [Silent sentinel lifecycle](#silent-sentinel-lifecycle)
 - [Herdr preflight and pane reuse](#herdr-preflight-and-pane-reuse)
 - [Ownership record](#ownership-record)
 - [Agent packets](#agent-packets)
@@ -21,12 +22,12 @@ and the final decision. Sol is the sole writer for a coherent batch.
 Luna runs at the Luna model's maximum reasoning setting and remains read-only. Project policy may
 select exactly one of these roles for a run:
 
-- heartbeat sentinel: watch scope, time, patch, and validation budgets;
+- silent sentinel: watch scope, time, patch, and validation budgets without healthy messages;
 - bounded verifier: independently execute or inspect the frozen validation target;
 - interactive operator: operate a UI or manual process and capture observations.
 
-Start a fresh Luna agent session for bounded verification or interactive operation. A persistent
-sentinel may remain attached only for the active run it watches.
+Start a fresh Luna agent session for bounded verification or interactive operation. A silent
+sentinel may remain attached only for the bounded active run it watches.
 
 Fable receives at most one turn per causal hypothesis. Use it either to disprove the hypothesis
 before implementation or to review the settled patch. It does not become a second writer.
@@ -37,13 +38,33 @@ Prefer a direct Sol run. Add an agent only for a distinct need declared by the p
 
 | Need | Role | Source access | Writes |
 | --- | --- | --- | --- |
-| Scope/time heartbeat during a long run | Luna sentinel | Read-only | External heartbeat state only |
+| Silent scope/time checks during a long run | Luna sentinel | Read-only | External state and process record only |
 | Independent frozen-source validation | Fresh Luna verifier | Read-only | Declared evidence artifacts only |
 | Sustained UI/manual interaction | Fresh Luna operator | Read-only | Declared evidence artifacts only |
 | One semantic challenge | Fable | Read-only | Review response only |
 
 Do not silently switch modes. A new hypothesis, second subsystem, or changed owner requires a new
 contract and run.
+
+## Silent sentinel lifecycle
+
+Installing this skill starts nothing. Keep `luna_mode` set to `null` unless the run explicitly needs
+a sentinel. When selected, use `silent-sentinel` and run one bounded watcher in a recorded
+workflow-owned pane; never detach it as a daemon or leave it running for a later run.
+
+Create a pending process record before launch, then add the exact process id immediately after
+startup. Record its owner, state path, start time, and deadline. Poll internally at the configured
+interval and write health to external state. Do not send healthy, acknowledgement, or unchanged
+status messages.
+
+Send one deduplicated notice only for a new warning, stop, blocker, or completion. Prefer a native
+advisory message that does not start a user turn. If the host lacks that capability, use a normal
+user message only for a critical stop or blocker. Keep durable detail in the state file and send a
+short pointer; advisory messages still consume model context and may survive compaction.
+
+Exit the watcher at the earliest of target settlement, mandatory stop, owner cleanup, target loss,
+or the configured runtime deadline. The parent workflow remains responsible for stopping the exact
+recorded process in a cleanup path even when the writer fails or the notice transport is unavailable.
 
 ## Herdr preflight and pane reuse
 
@@ -77,13 +98,23 @@ creating or reusing a pane:
     {
       "pane_id": "exact-id-from-herdr",
       "agent_name": "unique-agent-name",
-      "purpose": "heartbeat-sentinel",
+      "purpose": "silent-sentinel",
       "project_root": "/canonical/project/root",
       "pane_preexisting": false,
       "created_by_workflow": true,
       "agent_session_created_by_workflow": true,
       "created_at_utc": "ISO-8601 timestamp",
       "closed_at_utc": null
+    }
+  ],
+  "processes": [
+    {
+      "process_id": 12345,
+      "purpose": "silent-sentinel",
+      "started_by_workflow": true,
+      "started_at_utc": "ISO-8601 timestamp",
+      "deadline_utc": "ISO-8601 timestamp",
+      "stopped_at_utc": null
     }
   ]
 }
@@ -106,8 +137,9 @@ Send minimal English packets. Include:
 - handoff schema;
 - prohibition on child agents, credentials, scope expansion, and architecture changes.
 
-Do not send the parent transcript. A sentinel receives the contract and current run identifiers, not
-product decision authority. A verifier receives frozen source and cannot repair failures.
+Do not send the parent transcript. A sentinel receives the contract, policy, and current run
+identifiers, not product decision authority. A verifier receives frozen source and cannot repair
+failures.
 
 ## Evidence and settlement
 
@@ -141,11 +173,12 @@ that another Sol session can resume.
 
 After integration:
 
-1. Stop each workflow-started agent session and read its final state once.
-2. Retire unique sentinel state so another run cannot load old notices.
-3. Close each exact pane whose record says `created_by_workflow: true`.
-4. Leave every pre-existing pane open, even when its temporary agent session has stopped.
-5. Mark closed entries with a timestamp and confirm no completed workflow-created sentinel or
+1. Stop each exact workflow-started process and record its exit time.
+2. Stop each workflow-started agent session and read its final state once.
+3. Retire unique sentinel state so another run cannot load old notices.
+4. Close each exact pane whose record says `created_by_workflow: true`.
+5. Leave every pre-existing pane open, even when its temporary agent session has stopped.
+6. Mark closed entries with a timestamp and confirm no completed workflow-created sentinel or
    verifier panes remain.
 
 If cleanup cannot complete, report the exact pane ID, owner flag, agent state, and blocker.

@@ -1,6 +1,6 @@
 ---
 name: codex-herdr-sol-luna
-description: Coordinate project-configured Herdr workflows in which Sol owns intake, architecture, design-sensitive implementation, integration, and the final decision while Luna Max serves only as a read-only heartbeat sentinel, fresh bounded verifier, or interactive operator. Use for bounded Sol-Luna implementation runs that need explicit ownership, evidence, budgets, or pane lifecycle safety; do not use for trivial edits or overlapping writers.
+description: Coordinate project-configured Herdr workflows in which Sol owns intake, architecture, design-sensitive implementation, integration, and the final decision while Luna Max serves only as an explicitly selected read-only silent sentinel, fresh bounded verifier, or interactive operator. Use for bounded Sol-Luna implementation runs that need explicit ownership, evidence, budgets, or pane lifecycle safety; do not use for trivial edits, hidden background processes, or overlapping writers.
 ---
 
 # Codex Herdr: Sol and Luna
@@ -29,8 +29,8 @@ contents or copy credentials into prompts, logs, contracts, or evidence.
 ## Select the smallest useful topology
 
 - Use **Sol only** for ordinary implementation and deterministic validation.
-- Add **one Luna Max heartbeat sentinel** only for a long-running Sol implementation that benefits
-  from an independent read-only budget and scope watcher.
+- Add **one Luna Max silent sentinel** only when the run contract explicitly selects it for a
+  long-running Sol implementation. `luna_mode: null` creates no Luna pane or process.
 - Add **one fresh Luna Max bounded verifier** only when project policy selects it and independent
   verification is worth a separate session.
 - Add **one fresh Luna Max interactive operator** only for sustained UI or manual interaction that
@@ -46,13 +46,15 @@ decision.
    Herdr automatically.
 3. Reuse a suitable pane when possible, but start a fresh Luna agent session for each verifier or
    interactive operation. Immediately record every workflow-created pane and agent session.
+   For a sentinel, also record its process, state path, owner, and deadline before it starts.
 4. Give each agent only the task source, contract, profile, necessary files, acceptance criteria,
    baseline facts, and handoff schema. Prohibit child agents and scope expansion.
 5. Keep one coherent Sol patch batch within the contract. At checkpoint or stop conditions, finish
    only the current atomic action and return evidence-backed state.
 6. Run the profile's exact validation command. Treat zero discovered tests, missing artifacts, timeouts,
    or semantic failures as non-passing evidence.
-7. Integrate the decision, write the handoff, and clean up all workflow-owned completed panes.
+7. Integrate the decision, write the handoff, stop every workflow-started process, and clean up all
+   workflow-owned completed panes.
 
 Read [references/orchestration.md](references/orchestration.md) when operating Herdr panes, defining
 evidence, handling stop conditions, or migrating an existing workflow.
@@ -62,7 +64,9 @@ evidence, handling stop conditions, or migrating an existing workflow.
 Reuse a pane only when its target, working directory, purpose, and current state are known and it
 contains no active user work. Record whether each pane pre-existed and whether the workflow created
 it. Close only exact pane IDs marked `created_by_workflow: true`. Stop workflow-started sessions in
-reused panes but leave those panes open. Never leave completed sentinel or verifier panes behind.
+reused panes but leave those panes open. A sentinel remains silent while healthy, sends only
+deduplicated event notices, exits at its deadline or settlement, and is never detached as a daemon.
+Never leave completed sentinel or verifier panes behind.
 
 ## Return one handoff
 

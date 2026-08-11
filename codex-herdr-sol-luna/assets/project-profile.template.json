@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "codex-herdr-sol-luna/project-profile",
   "project": {
     "name": "replace-me",
@@ -21,11 +21,20 @@
       "enabled": true,
       "read_only": true,
       "allowed_modes": [
-        "heartbeat-sentinel",
+        "silent-sentinel",
         "bounded-verifier",
         "interactive-operator"
       ]
     }
+  },
+  "sentinel_policy": {
+    "default_mode": "off",
+    "healthy_notifications": false,
+    "deduplicate_events": true,
+    "user_message_fallback": "critical-only",
+    "max_runtime_minutes": 45,
+    "exit_after_stop": true,
+    "record_process": true
   },
   "paths": {
     "allowed": [

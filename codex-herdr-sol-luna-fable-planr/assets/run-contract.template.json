@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "codex-herdr-sol-luna-fable-planr/run-contract",
   "task": {
     "id": "replace-me",
@@ -55,6 +55,8 @@
   },
   "cleanup": {
     "ownership_record": ".codex-herdr/evidence/replace-with-run-id/pane-ownership.json",
+    "sentinel_process_record": ".codex-herdr/evidence/replace-with-run-id/sentinel-process.json",
+    "stop_recorded_sentinel_process": true,
     "close_recorded_workflow_panes": true,
     "leave_preexisting_panes_open": true,
     "retire_sentinel_state": true
