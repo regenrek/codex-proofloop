@@ -2,64 +2,45 @@
 
 ![Codex Herdr Orchestrator banner](assets/codex-herdr-orchestrator-banner.png)
 
-Three standalone Codex skills for clear, bounded workflows in Herdr: one writer, optional reviewers,
-and no hidden background service.
+Three ready-to-use Codex skills for running focused, bounded workflows in Herdr.
+
+One agent writes. Optional agents watch or review. Nothing runs behind your back.
+
+## Choose your version
+
+| Directory | Includes | Choose this when |
+| --- | --- | --- |
+| `codex-herdr-sol-luna/` | Sol + Luna | You want the smallest setup |
+| `codex-herdr-sol-luna-fable/` | Sol + Luna + Fable | You also want one independent Fable review |
+| `codex-herdr-sol-luna-fable-planr/` | Sol + Luna + Fable + Planr | You manage tasks and evidence with Planr |
+
+Each directory works on its own. Copy only the one you need.
+
+## How it works
+
+1. **Sol builds.** Sol is the only agent allowed to change your project.
+2. **Luna watches when invited.** The optional sentinel can stop unsafe or runaway work. It has a
+   deadline and shuts down with the run.
+3. **Tests stay lean.** Temporary probes do not become permanent tests automatically. Only useful,
+   stable checks are kept after the behavior is accepted.
+4. **Review stays bounded.** Fable and Planr are used only by the variants that include them.
+5. **You get a clean handoff.** Changes, validation, and important run evidence are summarized at the
+   end.
 
 **Catch aggressively. Commit reluctantly.**
 
-## Choose a version
+## Safety by default
 
-| Directory | Includes | Best when |
-| --- | --- | --- |
-| `codex-herdr-sol-luna/` | Sol + Luna | You want the smallest workflow |
-| `codex-herdr-sol-luna-fable/` | Sol + Luna + Fable | You also have Fable for one independent review |
-| `codex-herdr-sol-luna-fable-planr/` | Sol + Luna + Fable + Planr | Your tasks and evidence live in Planr |
-
-Each directory is complete by itself. Copy only the variant you need.
-
-## What you get
-
-- **One implementation owner:** Sol is the only writer.
-- **Optional review:** Luna, Fable, and Planr appear only in variants that include them.
-- **No surprise processes:** installing a skill starts nothing. Luna's silent sentinel is opt-in,
-  bounded, and stops at settlement or its deadline.
-- **Durable evidence:** contracts, validation results, and the sentinel's final state remain attached
-  to the run.
-- **Test discipline:** temporary probes stay temporary unless they prove a valuable invariant.
-
-## Test Distillation Gate
-
-Every variant ships the same dependency-free deterministic gate. It works in Sol-only runs with Luna
-disabled:
-
-`BUILD -> ACCEPT -> HARDEN -> DISTILL -> PROMOTE OR DROP`
-
-BUILD starts with a zero-permanent-test budget. After acceptance, HARDEN may promote a small test only
-with explicit budget and counterfactual evidence. Luna can review an admission, but never writes tests.
-
-```bash
-python3 scripts/test_distillation_gate.py snapshot --project /absolute/project \
-  --project-profile /absolute/project/policy/profile.json \
-  --run-contract /absolute/project/policy/build-run.json
-# implement and run the configured focused validation command
-python3 scripts/test_distillation_gate.py settle --project /absolute/project \
-  --project-profile /absolute/project/policy/profile.json \
-  --run-contract /absolute/project/policy/build-run.json
-```
-
-Schema 3 replaces `tests_allowed` with `test_policy` and renames the old phases to `build` and
-`harden`. Migrate v2 files explicitly; the validator returns a migration-oriented error instead of
-silently coercing them. Add `validation.full_suite_command` (often `null`) and the profile's `testing`
-policy, replace the contract boolean with baseline/result/ephemeral/admission paths and explicit
-budgets, then create a fresh baseline. Do not reuse a v2 baseline across this boundary.
-
-The gate classifies tests through configurable paths. Inline tests inside production files cannot be
-reliably classified this way. Binary and symlink changes are handled safely, but their added-line count
-may be zero. Test deletion, renaming, and legacy-suite retirement are intentionally out of scope.
+- Installing a skill starts no watcher, daemon, or background service.
+- Luna is optional and read-only.
+- Sol remains the single implementation writer.
+- The sentinel is opt-in, tied to one run, and time-bounded.
+- The test gate uses Git to detect changes, including files created from the shell.
+- Existing user changes are preserved as the starting point.
 
 ## Install
 
-Copy one directory into your Codex skills folder:
+Clone this repository, then copy one variant into your Codex skills folder:
 
 ```bash
 cp -R codex-herdr-sol-luna ~/.agents/skills/
@@ -71,17 +52,14 @@ Then ask Codex to use it:
 Use $codex-herdr-sol-luna for this task.
 ```
 
-For pane-based modes, Herdr must already be installed and running. Each variant includes its own
-templates, validator, sentinel, and test gate. Sol-only gate runs need only Python and Git.
+Herdr must already be installed for pane-based workflows. The skills themselves add no Python
+packages or background services.
 
-## Check the repository
+## Development
 
 ```bash
 python3 -m compileall codex-herdr-sol-luna/scripts codex-herdr-sol-luna-fable/scripts codex-herdr-sol-luna-fable-planr/scripts
 python3 -m unittest discover -s tests -v
 ```
 
-The shipped BUILD contract has a zero permanent-test budget. Validate its profile and contract
-together; validate the non-empty admission example separately or with a matching HARDEN contract.
-
-MIT licensed. See [LICENSE](LICENSE).
+See [CHANGELOG.md](CHANGELOG.md) for releases. MIT licensed; see [LICENSE](LICENSE).
