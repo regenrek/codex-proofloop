@@ -37,6 +37,8 @@ Each directory under `skills/` is standalone. Install only the one you need.
    suite.
 4. **DISTILL:** Keep the smallest stable test that protects the invariant. Drop the rest.
 
+![How Proofloop works: BUILD, ACCEPT, HARDEN, DISTILL, then PROMOTE or DROP](assets/proofloop-how-it-works-excalidraw.png)
+
 The deterministic gate uses Git to notice changes even when files were created by shell commands. It
 preserves changes that were already present before the run and works with Sol alone. Luna remains
 optional.
