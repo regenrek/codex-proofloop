@@ -6,6 +6,8 @@
 - Added `proofloop-sol-luna`, a native Codex variant with no Herdr dependency, sentinel, pane
   lifecycle, heartbeat, or background process.
 - Made all four variants discoverable and installable through `npx skills`.
+- Added a small, clearly limited Vanilla-versus-Proofloop Pokedex benchmark with side-by-side
+  screenshots and an easy-to-read result.
 - Added a concise explanation of the Test Distillation motivation and its research inspiration.
 - Updated the repository banner to feature the Codex mascot guiding three agent paths through the
   deterministic gate.

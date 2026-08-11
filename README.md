@@ -41,6 +41,19 @@ The deterministic gate uses Git to notice changes even when files were created b
 preserves changes that were already present before the run and works with Sol alone. Luna remains
 optional.
 
+## A small comparison
+
+We ran one simple Pokedex test with the same task and starter tests: normal Sol on one side,
+Proofloop Sol + Luna on the other. Both produced a working app. Proofloop finished faster and added no
+permanent tests; Vanilla added three focused tests.
+
+| Vanilla Sol | Proofloop Sol + Luna |
+| :---: | :---: |
+| ![Vanilla Sol Pokedex](assets/benchmark/vanilla-pokedex.png) | ![Proofloop Sol and Luna Pokedex](assets/benchmark/proofloop-pokedex.png) |
+
+This was only one simple test, not a scientific or definitive benchmark.
+[Read the understandable benchmark result.](docs/benchmark-minimal.md)
+
 ## Install with `npx skills`
 
 Browse and choose interactively:
