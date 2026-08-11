@@ -99,19 +99,25 @@ class SentinelRuntimeTests(unittest.TestCase):
                 {
                     "type": "event_msg",
                     "payload": {
-                        "type": "patch_apply_end",
-                        "success": True,
+                        "type": "item_completed",
                         "turn_id": "one",
-                        "changes": {"outside/first.py": {}},
+                        "item": {
+                            "type": "FileChange",
+                            "status": "completed",
+                            "changes": {"outside/first.py": {}},
+                        },
                     },
                 },
                 {
                     "type": "event_msg",
                     "payload": {
-                        "type": "patch_apply_end",
-                        "success": True,
+                        "type": "item_completed",
                         "turn_id": "two",
-                        "changes": {"outside/second.py": {}},
+                        "item": {
+                            "type": "FileChange",
+                            "status": "completed",
+                            "changes": {"outside/second.py": {}},
+                        },
                     },
                 },
             ]
@@ -213,7 +219,7 @@ class SentinelRuntimeTests(unittest.TestCase):
             self.assertEqual("sigterm", record["exit_reason"])
             self.assertIsNotNone(record["stopped_at_utc"])
 
-    def test_settled_target_without_session_exits_immediately(self) -> None:
+    def test_done_target_without_session_remains_pending_until_cleanup(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             profile, contract, _session = self.fixture(root)
@@ -227,12 +233,94 @@ class SentinelRuntimeTests(unittest.TestCase):
             fake_herdr.chmod(0o755)
             environment = dict(os.environ)
             environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
-            result = subprocess.run(
+            process = subprocess.Popen(
                 [
                     sys.executable,
                     str(SCRIPT),
                     "--target",
                     "settled-writer",
+                    "--project",
+                    str(root),
+                    "--project-profile",
+                    str(profile),
+                    "--run-contract",
+                    str(contract),
+                    "--interval",
+                    "10",
+                ],
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            process_record = root / ".runtime" / "process.json"
+            for _ in range(40):
+                if process_record.exists():
+                    break
+                time.sleep(0.05)
+            self.assertTrue(process_record.exists())
+            time.sleep(0.2)
+            self.assertIsNone(process.poll())
+            process.terminate()
+            stdout, stderr = process.communicate(timeout=5)
+            self.assertEqual(0, process.returncode, stderr)
+            self.assertEqual("", stdout)
+            process_state = load_json(process_record)
+            state = load_json(root / ".runtime" / "state.json")
+            self.assertEqual("sigterm", process_state["exit_reason"])
+            self.assertTrue(state["target_observed_pending"])
+            self.assertEqual([], state["events"])
+
+    def test_fast_finish_reads_final_events_before_settlement(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile, contract, _session = self.fixture(root)
+            fake_home = root / "home"
+            sessions = fake_home / ".codex" / "sessions"
+            sessions.mkdir(parents=True)
+            session_file = sessions / "rollout-fast-session.jsonl"
+            session_file.write_text(
+                json.dumps(
+                    {
+                        "type": "event_msg",
+                        "payload": {
+                            "type": "item_completed",
+                            "turn_id": "fast",
+                            "item": {
+                                "type": "FileChange",
+                                "status": "completed",
+                                "changes": {"outside/final.py": {}},
+                            },
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            fake_herdr = fake_bin / "herdr"
+            fake_herdr.write_text(
+                "#!/bin/sh\n"
+                "if test ! -f \"$FAKE_COUNTER\"; then\n"
+                "  touch \"$FAKE_COUNTER\"\n"
+                "  printf '%s\\n' '{\"result\":{\"agent\":{\"agent_status\":\"done\"}}}'\n"
+                "else\n"
+                "  printf '%s\\n' '{\"result\":{\"agent\":{\"agent_status\":\"done\",\"agent_session\":{\"value\":\"fast-session\"}}}}'\n"
+                "fi\n",
+                encoding="utf-8",
+            )
+            fake_herdr.chmod(0o755)
+            environment = dict(os.environ)
+            environment["HOME"] = str(fake_home)
+            environment["FAKE_COUNTER"] = str(root / "herdr-counter")
+            environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--target",
+                    "fast-writer",
                     "--project",
                     str(root),
                     "--project-profile",
@@ -252,8 +340,9 @@ class SentinelRuntimeTests(unittest.TestCase):
             self.assertEqual("", result.stdout)
             process = load_json(root / ".runtime" / "process.json")
             state = load_json(root / ".runtime" / "state.json")
-            self.assertEqual("target-settled", process["exit_reason"])
-            self.assertEqual("TARGET_SETTLED", state["events"][0]["code"])
+            self.assertEqual("mandatory-stop", process["exit_reason"])
+            self.assertIn("SCOPE", state["event_codes"])
+            self.assertNotIn("TARGET_SETTLED", state["event_codes"])
 
 
 if __name__ == "__main__":

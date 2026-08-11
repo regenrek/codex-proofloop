@@ -179,14 +179,20 @@ def inspect_records(
         if record_type == "compacted" or payload_type == "context_compacted":
             events.append(("CONTEXT_COMPACTED", "stop", "writer context was compacted"))
 
-        if record_type == "event_msg" and payload_type == "patch_apply_end" and payload.get("success"):
-            key = payload.get("turn_id") or payload.get("call_id")
+        item = payload.get("item") or {}
+        if (
+            record_type == "event_msg"
+            and payload_type == "item_completed"
+            and item.get("type") == "FileChange"
+            and item.get("status") == "completed"
+        ):
+            key = payload.get("turn_id") or item.get("id")
             if not key:
                 serialized = json.dumps(record, sort_keys=True, default=str)
                 key = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
             patch_turns.add(str(key))
             state["last_material_at"] = time.time()
-            for raw_path in (payload.get("changes") or {}):
+            for raw_path in (item.get("changes") or {}):
                 path = relative_path(str(raw_path), project)
                 if not path_allowed(path, contract["allowed_paths"]):
                     events.append(("SCOPE", "stop", f"out-of-scope write at {path}"))
@@ -321,6 +327,7 @@ def main(argv: list[str] | None = None) -> int:
                 "event_codes": [],
                 "events": [],
                 "target_seen_working": False,
+                "target_observed_pending": False,
             }
         deadline = float(state["started_at"]) + runtime_minutes * 60
         owner_pid = os.getppid()
@@ -369,26 +376,23 @@ def main(argv: list[str] | None = None) -> int:
                 state["target_seen_working"] = True
             if status == "unknown":
                 candidates.append(("TARGET_UNKNOWN", "stop", "target status became unknown"))
-            if status in SETTLED_STATUSES or (
-                status == "idle" and state.get("target_seen_working")
-            ):
-                append_new_events(
-                    state, [("TARGET_SETTLED", "completion", f"target settled as {status}")]
-                )
-                exit_reason, exit_code = "target-settled", 0
-                atomic_json(state_path, state)
-                break
 
             if session_id is not None and session_file is not None:
                 previous_session = state.get("session_id")
                 if previous_session is None:
+                    if args.session_file is None and not state.get("target_observed_pending"):
+                        candidates.append(
+                            ("TARGET_NOT_FRESH", "stop", "target already had a session at startup")
+                        )
                     state["session_id"] = session_id
-                    state["offset"] = 0 if args.session_file is not None else session_file.stat().st_size
+                    state["offset"] = 0
                 elif previous_session != session_id:
                     candidates.append(("TARGET_REPLACED", "stop", "target switched session"))
                 records, offset = read_records(session_file, int(state.get("offset", 0)))
                 state["offset"] = offset
                 candidates.extend(inspect_records(records, state, contract, project))
+            elif not state.get("target_seen_working"):
+                state["target_observed_pending"] = True
 
             quiet_minutes = (now - float(state["last_material_at"])) / 60
             checkpoint = contract["budgets"]["checkpoint_minutes"]
@@ -402,7 +406,7 @@ def main(argv: list[str] | None = None) -> int:
             stop_events = [event for event in new_events if event["level"] == "stop"]
             if stop_events:
                 atomic_json(state_path, state)
-                if state.get("target_seen_working"):
+                if status == "working":
                     try:
                         send_critical(
                             args.target,
@@ -419,6 +423,17 @@ def main(argv: list[str] | None = None) -> int:
                         break
                 atomic_json(state_path, state)
                 exit_reason, exit_code = "mandatory-stop", 0
+                break
+
+            target_started = state.get("target_seen_working") or state.get("session_id") is not None
+            if target_started and (
+                status in SETTLED_STATUSES or status == "idle"
+            ):
+                append_new_events(
+                    state, [("TARGET_SETTLED", "completion", f"target settled as {status}")]
+                )
+                exit_reason, exit_code = "target-settled", 0
+                atomic_json(state_path, state)
                 break
 
             atomic_json(state_path, state)
