@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a prominent Experimental warning that explains Proofloop's filesystem and recovery boundary.
 - Renamed the product to Proofloop and moved every standalone skill under `skills/`.
 - Added `proofloop-sol-luna`, a native Codex variant with no Herdr dependency, sentinel, pane
   lifecycle, heartbeat, or background process.

@@ -1,5 +1,7 @@
 # Proofloop
 
+[![Status: Experimental](https://img.shields.io/badge/status-experimental-orange)](https://github.com/regenrek/codex-proofloop)
+
 ![Proofloop banner](assets/proofloop-banner.png)
 
 Proofloop keeps coding-agent tests useful without letting every debugging experiment become permanent.
@@ -7,6 +9,12 @@ Proofloop keeps coding-agent tests useful without letting every debugging experi
 `BUILD → ACCEPT → HARDEN → DISTILL`
 
 **Catch aggressively. Commit reluctantly.**
+
+> [!WARNING]
+> Proofloop is an experimental workflow guardrail, not a filesystem sandbox. During a correctly
+> completed run, its gate detects and rejects test deletions and renames, but it cannot prevent an
+> agent from modifying files or automatically restore them. Use a clean Git branch, verify your test
+> globs, and review the final diff—especially in large or unfamiliar codebases.
 
 ## Why this exists
 
