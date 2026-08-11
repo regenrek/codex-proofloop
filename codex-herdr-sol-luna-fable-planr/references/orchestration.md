@@ -52,10 +52,20 @@ Installing this skill starts nothing. Keep `luna_mode` set to `null` unless the 
 a sentinel. When selected, use `silent-sentinel` and run one bounded watcher in a recorded
 workflow-owned pane; never detach it as a daemon or leave it running for a later run.
 
-Create a pending process record before launch, then add the exact process id immediately after
-startup. Record its owner, state path, start time, and deadline. Poll internally at the configured
-interval and write health to external state. Do not send healthy, acknowledgement, or unchanged
-status messages.
+Start the sentinel before the writer's first prompt so its baseline cannot include earlier session
+history. Run the bundled runtime by absolute path:
+
+```bash
+python3 /absolute/path/to/selected-skill/scripts/silent_sentinel.py \
+  --target 'exact-writer-target' \
+  --project '/absolute/project/root' \
+  --project-profile '/absolute/project/root/path/to/project-profile.json' \
+  --run-contract '/absolute/project/root/path/to/run-contract.json'
+```
+
+The script atomically records its exact process id, owner, state path, start time, and deadline. It
+polls internally and writes health to the contract's external state record. It sends no healthy,
+acknowledgement, or unchanged status messages.
 
 Send one deduplicated notice only for a new warning, stop, blocker, or completion. Prefer a native
 advisory message that does not start a user turn. If the host lacks that capability, use a normal
@@ -110,10 +120,13 @@ creating or reusing a pane:
   "processes": [
     {
       "process_id": 12345,
+      "owner_process_id": 12300,
       "purpose": "silent-sentinel",
       "started_by_workflow": true,
       "started_at_utc": "ISO-8601 timestamp",
       "deadline_utc": "ISO-8601 timestamp",
+      "state_record": ".codex-herdr/evidence/run-id/sentinel-state.json",
+      "status": "running",
       "stopped_at_utc": null
     }
   ]

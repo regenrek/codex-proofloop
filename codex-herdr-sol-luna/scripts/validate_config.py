@@ -251,9 +251,10 @@ def _contract(document: dict[str, Any], errors: list[str]) -> None:
     _manual_acceptance(document.get("manual_acceptance"), "$.manual_acceptance", errors)
 
     cleanup = _object(document.get("cleanup"), "$.cleanup", errors)
-    _keys(cleanup, "$.cleanup", {"ownership_record", "sentinel_process_record", "stop_recorded_sentinel_process", "close_recorded_workflow_panes", "leave_preexisting_panes_open", "retire_sentinel_state"}, errors)
+    _keys(cleanup, "$.cleanup", {"ownership_record", "sentinel_process_record", "sentinel_state_record", "stop_recorded_sentinel_process", "close_recorded_workflow_panes", "leave_preexisting_panes_open", "retire_sentinel_state"}, errors)
     _relative(cleanup.get("ownership_record"), "$.cleanup.ownership_record", errors)
     _relative(cleanup.get("sentinel_process_record"), "$.cleanup.sentinel_process_record", errors)
+    _relative(cleanup.get("sentinel_state_record"), "$.cleanup.sentinel_state_record", errors)
     for field in ("stop_recorded_sentinel_process", "close_recorded_workflow_panes", "leave_preexisting_panes_open", "retire_sentinel_state"):
         if _boolean(cleanup.get(field), f"$.cleanup.{field}", errors) is False:
             errors.append(f"$.cleanup.{field}: must be true")

@@ -14,7 +14,7 @@ Each directory is complete by itself. Pick one; you do not need the other tools 
 
 Installing a skill starts no watcher or background process. Luna is off by default. A silent
 sentinel runs only when a run contract explicitly selects it, and it must stop at settlement or its
-deadline.
+deadline. Each variant includes the same dependency-free, opt-in sentinel runtime.
 
 ## Install
 

@@ -110,10 +110,19 @@ class VariantTests(unittest.TestCase):
                 self.assertTrue(policy["record_process"])
                 self.assertIsNone(contract["luna_mode"])
                 self.assertTrue(contract["cleanup"]["stop_recorded_sentinel_process"])
+                self.assertTrue(contract["cleanup"]["sentinel_state_record"].endswith(".json"))
+                self.assertTrue((directory / "scripts" / "silent_sentinel.py").is_file())
                 self.assertFalse(any(
                     "heartbeat" in path.name.lower() or "watcher" in path.name.lower()
                     for path in (directory / "scripts").iterdir()
                 ))
+
+    def test_variants_ship_one_identical_sentinel_runtime(self) -> None:
+        scripts = [
+            (ROOT / variant / "scripts" / "silent_sentinel.py").read_bytes()
+            for variant in VARIANTS
+        ]
+        self.assertTrue(all(script == scripts[0] for script in scripts[1:]))
 
     def test_optional_tool_names_are_absent_from_smaller_variants(self) -> None:
         sol_luna_text = variant_text(ROOT / "codex-herdr-sol-luna")

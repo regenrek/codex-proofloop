@@ -31,6 +31,8 @@ contents or copy credentials into prompts, logs, contracts, or evidence.
 - Use **Sol only** for ordinary implementation and deterministic validation.
 - Add **one Luna Max silent sentinel** only when the run contract explicitly selects it for a
   long-running Sol implementation. `luna_mode: null` creates no Luna pane or process.
+  Start it only with [scripts/silent_sentinel.py](scripts/silent_sentinel.py); the script refuses an
+  unselected mode and exits at settlement, owner loss, mandatory stop, or its deadline.
 - Add **one fresh Luna Max bounded verifier** only when project policy selects it and independent
   verification is worth a separate session.
 - Add **one fresh Luna Max interactive operator** only for sustained UI or manual interaction that

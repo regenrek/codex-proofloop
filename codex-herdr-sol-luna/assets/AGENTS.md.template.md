@@ -27,7 +27,8 @@
 - Luna Max: off unless the run contract explicitly selects a read-only silent sentinel, fresh
   bounded verifier, or fresh interactive operator. A sentinel stays silent while healthy, has a
   recorded process and deadline, and uses user messages only as a critical fallback. Luna may write
-  only declared external evidence.
+  only declared external evidence. Start a selected sentinel only with the bundled
+  `scripts/silent_sentinel.py` runtime.
 - Human: owns subjective, experiential, safety, or other declared manual acceptance.
 
 ## Execution
