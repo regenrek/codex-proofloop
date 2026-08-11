@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import hashlib
 import json
 import os
@@ -17,7 +16,8 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from validate_config import validate_document  # noqa: E402
+from validate_config import validate_bundle  # noqa: E402
+from test_distillation_gate import ensure_baseline, evaluate  # noqa: E402
 
 SETTLED_STATUSES = {"done", "blocked"}
 PENDING_POLL_SECONDS = 2
@@ -62,6 +62,26 @@ def atomic_json(path: Path, value: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def retired_state_destination(state_path: Path, timestamp: float) -> Path:
+    stamp = datetime.fromtimestamp(timestamp, timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    stem = state_path.name[:-5] if state_path.name.endswith(".json") else state_path.name
+    candidate = state_path.with_name(f"{stem}.retired.{stamp}.json")
+    suffix = 1
+    while candidate.exists():
+        candidate = state_path.with_name(f"{stem}.retired.{stamp}.{suffix}.json")
+        suffix += 1
+    return candidate
+
+
+def retire_state(state_path: Path, state: dict[str, Any], timestamp: float, exit_reason: str) -> Path:
+    state["sentinel_exit_reason"] = exit_reason
+    state["retired_at_utc"] = utc_iso(timestamp)
+    atomic_json(state_path, state)
+    destination = retired_state_destination(state_path, timestamp)
+    state_path.rename(destination)
+    return destination
+
+
 def configured_path(project: Path, raw: Any, field: str) -> Path:
     if not isinstance(raw, str) or not raw:
         raise ValueError(f"{field}: expected project-relative path")
@@ -82,7 +102,7 @@ def validate_inputs(
         raise ValueError("--project must be an existing absolute directory")
     profile = load_json(profile_path)
     contract = load_json(contract_path)
-    errors = validate_document(profile) + validate_document(contract)
+    errors = validate_bundle(profile, contract)
     if errors:
         raise ValueError("configuration failed validation: " + "; ".join(errors))
     if contract.get("luna_mode") != "silent-sentinel":
@@ -135,41 +155,19 @@ def read_records(path: Path, offset: int) -> tuple[list[dict[str, Any]], int]:
         return records, handle.tell()
 
 
-def relative_path(raw_path: str, project: Path) -> str:
-    path = Path(raw_path)
-    if path.is_absolute():
-        try:
-            path = path.relative_to(project)
-        except ValueError:
-            return raw_path
-    return path.as_posix().lstrip("./")
-
-
-def path_allowed(path: str, patterns: list[str]) -> bool:
-    normalized = path.rstrip("/")
-    for raw_pattern in patterns:
-        pattern = raw_pattern.replace("\\", "/").lstrip("./")
-        if fnmatch.fnmatch(normalized, pattern):
-            return True
-        if pattern.endswith("/**") and normalized.startswith(pattern[:-3].rstrip("/") + "/"):
-            return True
-    return False
-
-
-def is_test_path(path: str) -> bool:
-    lowered = f"/{path.lower()}"
-    return "/tests/" in lowered or lowered.endswith(("tests.cs", "test.cs"))
+def has_session_activity(records: list[dict[str, Any]]) -> bool:
+    return any(str(record.get("type") or "") not in {"", "session_meta"} for record in records)
 
 
 def inspect_records(
     records: list[dict[str, Any]],
     state: dict[str, Any],
     contract: dict[str, Any],
-    project: Path,
 ) -> list[tuple[str, str, str]]:
     events: list[tuple[str, str, str]] = []
     patch_turns = {str(item) for item in state.get("patch_turns", [])}
     validation_command = contract["validation"]["command"]
+    full_suite_command = state.get("full_suite_command")
 
     for record in records:
         record_type = record.get("type")
@@ -192,12 +190,6 @@ def inspect_records(
                 key = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
             patch_turns.add(str(key))
             state["last_material_at"] = time.time()
-            for raw_path in (item.get("changes") or {}):
-                path = relative_path(str(raw_path), project)
-                if not path_allowed(path, contract["allowed_paths"]):
-                    events.append(("SCOPE", "stop", f"out-of-scope write at {path}"))
-                if not contract["tests_allowed"] and is_test_path(path):
-                    events.append(("TEST_CREEP", "stop", f"forbidden test edit at {path}"))
 
         if record_type == "response_item" and payload_type == "custom_tool_call":
             tool_input = str(payload.get("input") or "")
@@ -208,6 +200,9 @@ def inspect_records(
                         ("REPEATED_VALIDATION", "stop", "validation repeated without a new patch")
                     )
                 state["last_validation_patch_count"] = patch_count
+            if full_suite_command and full_suite_command in tool_input:
+                if contract["phase"] == "build" or not contract["test_policy"]["full_suite"]["allowed"]:
+                    events.append(("FULL_SUITE_EARLY", "stop", "configured full-suite command ran without explicit HARDEN permission"))
 
     state["patch_turns"] = sorted(patch_turns)
     limit = contract["budgets"]["max_patch_batches"]
@@ -284,11 +279,15 @@ def main(argv: list[str] | None = None) -> int:
     process: dict[str, Any] | None = None
     state_path: Path | None = None
     state: dict[str, Any] | None = None
+    retire_state_selected = False
     exit_reason = "error"
     exit_code = 1
 
     try:
         profile, contract = validate_inputs(project, profile_path, contract_path)
+        baseline = ensure_baseline(project, profile, contract)
+        if baseline.get("verdict") != "pass":
+            raise RuntimeError("deterministic gate baseline failed")
         cleanup = contract["cleanup"]
         process_record = configured_path(
             project, cleanup["sentinel_process_record"], "$.cleanup.sentinel_process_record"
@@ -296,8 +295,14 @@ def main(argv: list[str] | None = None) -> int:
         state_path = configured_path(
             project, cleanup["sentinel_state_record"], "$.cleanup.sentinel_state_record"
         )
-        if process_record.exists() and load_json(process_record).get("status") == "running":
-            raise RuntimeError("sentinel process record is already running")
+        retire_state_selected = cleanup["retire_sentinel_state"]
+        if process_record.exists():
+            prior_process = load_json(process_record)
+            if prior_process.get("status") == "running":
+                raise RuntimeError("sentinel process record is already running")
+            raise RuntimeError(
+                "sentinel run is already finalized; use a new run contract and evidence directory"
+            )
 
         digest = hashlib.sha256(
             json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -327,8 +332,11 @@ def main(argv: list[str] | None = None) -> int:
                 "event_codes": [],
                 "events": [],
                 "target_seen_working": False,
+                "target_activity_observed": False,
                 "target_observed_pending": False,
+                "full_suite_command": profile["validation"]["full_suite_command"],
             }
+        state["full_suite_command"] = profile["validation"]["full_suite_command"]
         deadline = float(state["started_at"]) + runtime_minutes * 60
         owner_pid = os.getppid()
         if owner_pid <= 1:
@@ -344,6 +352,9 @@ def main(argv: list[str] | None = None) -> int:
             "started_at_utc": utc_iso(now),
             "deadline_utc": utc_iso(deadline),
             "state_record": cleanup["sentinel_state_record"],
+            "retired_state_record": None,
+            "state_retired_at_utc": None,
+            "state_retirement_error": None,
             "status": "running",
             "exit_reason": None,
             "stopped_at_utc": None,
@@ -372,8 +383,6 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 session_id, status, session_file = agent_snapshot(args.target)
 
-            if status == "working":
-                state["target_seen_working"] = True
             if status == "unknown":
                 candidates.append(("TARGET_UNKNOWN", "stop", "target status became unknown"))
 
@@ -390,9 +399,21 @@ def main(argv: list[str] | None = None) -> int:
                     candidates.append(("TARGET_REPLACED", "stop", "target switched session"))
                 records, offset = read_records(session_file, int(state.get("offset", 0)))
                 state["offset"] = offset
-                candidates.extend(inspect_records(records, state, contract, project))
-            elif not state.get("target_seen_working"):
+                if status == "working":
+                    state["target_seen_working"] = True
+                    state["target_activity_observed"] = True
+                if has_session_activity(records):
+                    state["target_activity_observed"] = True
+                candidates.extend(inspect_records(records, state, contract))
+            elif not state.get("target_activity_observed"):
                 state["target_observed_pending"] = True
+
+            gate = evaluate("check", project, profile, contract)
+            for item in gate["violations"]:
+                code = str(item["code"])
+                if contract["phase"] == "harden" and code in {"TEST_ADMISSION_MISSING", "TEST_ADMISSION_INVALID", "TEST_EVIDENCE_MISSING", "EPHEMERAL_LEAK"}:
+                    continue
+                candidates.append((code, "stop", str(item.get("detail", code))))
 
             quiet_minutes = (now - float(state["last_material_at"])) / 60
             checkpoint = contract["budgets"]["checkpoint_minutes"]
@@ -400,6 +421,28 @@ def main(argv: list[str] | None = None) -> int:
                 candidates.append(
                     ("CHECKPOINT", "warning", f"no material artifact for {quiet_minutes:.0f} minutes")
                 )
+
+            target_settling = state.get("target_activity_observed") and (
+                status in SETTLED_STATUSES or status == "idle"
+            )
+            if target_settling:
+                settlement = evaluate("settle", project, profile, contract)
+                settlement_events = [
+                    (str(item["code"]), "stop", str(item.get("detail", item["code"])))
+                    for item in settlement["violations"]
+                ]
+                terminal_stops = [item for item in candidates + settlement_events if item[1] == "stop"]
+                if terminal_stops:
+                    append_new_events(state, terminal_stops)
+                    state["last_checked_at_utc"] = utc_iso(now)
+                    atomic_json(state_path, state)
+                    exit_reason, exit_code = "gate-failed-after-settlement", 2
+                    break
+                append_new_events(state, [("TARGET_SETTLED", "completion", f"target settled as {status}")])
+                state["last_checked_at_utc"] = utc_iso(now)
+                atomic_json(state_path, state)
+                exit_reason, exit_code = "target-settled", 0
+                break
 
             new_events = append_new_events(state, candidates)
             state["last_checked_at_utc"] = utc_iso(now)
@@ -425,17 +468,6 @@ def main(argv: list[str] | None = None) -> int:
                 exit_reason, exit_code = "mandatory-stop", 0
                 break
 
-            target_started = state.get("target_seen_working") or state.get("session_id") is not None
-            if target_started and (
-                status in SETTLED_STATUSES or status == "idle"
-            ):
-                append_new_events(
-                    state, [("TARGET_SETTLED", "completion", f"target settled as {status}")]
-                )
-                exit_reason, exit_code = "target-settled", 0
-                atomic_json(state_path, state)
-                break
-
             atomic_json(state_path, state)
             if args.once:
                 exit_reason, exit_code = "once-complete", 0
@@ -456,9 +488,21 @@ def main(argv: list[str] | None = None) -> int:
         exit_reason, exit_code = "error", 1
     finally:
         if process_record is not None and process is not None:
+            stopped_at = time.time()
+            if retire_state_selected:
+                try:
+                    if state_path is None or state is None or not state_path.exists():
+                        raise OSError("sentinel state record is missing during retirement")
+                    retired_path = retire_state(state_path, state, stopped_at, exit_reason)
+                    process["retired_state_record"] = retired_path.relative_to(project).as_posix()
+                    process["state_retired_at_utc"] = utc_iso(stopped_at)
+                except OSError as error:
+                    process["state_retirement_error"] = str(error)
+                    print(f"silent-sentinel state retirement: {error}", file=sys.stderr)
+                    exit_code = 1
             process["status"] = "stopped"
             process["exit_reason"] = exit_reason
-            process["stopped_at_utc"] = utc_iso()
+            process["stopped_at_utc"] = utc_iso(stopped_at)
             try:
                 atomic_json(process_record, process)
             except OSError as error:

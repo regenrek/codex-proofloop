@@ -1,0 +1,23 @@
+{
+  "schema_version": 3,
+  "kind": "codex-herdr-sol-luna/test-admission",
+  "task_id": "replace-me",
+  "admissions": [
+    {
+      "invariant_id": "auth.expired-token-rejected",
+      "disposition": "merge-existing",
+      "test_paths": ["tests/auth/test_tokens.py"],
+      "observable_contract": "Expired tokens cannot access tenant data",
+      "stable_boundary": "Public API response and authorization result",
+      "counterfactual": {
+        "kind": "baseline",
+        "description": "Original revision without the expiry fix",
+        "existing_suite": {"verdict": "pass", "evidence": ".codex-herdr/evidence/replace-with-run-id/existing-suite-counterfactual.json"},
+        "candidate": {"verdict": "fail", "evidence": ".codex-herdr/evidence/replace-with-run-id/candidate-counterfactual.json"}
+      },
+      "final": {"verdict": "pass", "evidence": ".codex-herdr/evidence/replace-with-run-id/candidate-final.json"},
+      "distinct_signal": "Existing tests cover invalid signatures but do not reject expired validly signed tokens",
+      "deterministic": true
+    }
+  ]
+}

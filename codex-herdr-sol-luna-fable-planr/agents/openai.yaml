@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex Herdr: Sol, Luna, Fable + Planr"
-  short_description: "Run Planr-backed Sol, Luna, and Fable work"
-  default_prompt: "Use $codex-herdr-sol-luna-fable-planr to coordinate this Planr-backed task through a bounded Herdr workflow."
+  short_description: "Planr work with test distillation"
+  default_prompt: "Use $codex-herdr-sol-luna-fable-planr to run this Planr-backed task with the deterministic BUILD/HARDEN test gate."

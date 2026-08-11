@@ -7,9 +7,17 @@
 - Runtime owner: Sol owns intake, architecture, design-sensitive implementation, integration, and
   the final decision.
 - Sole writer: Sol owns the coherent patch batch. No overlapping writers or child agents.
+- Phase: `<build or harden>`; phase changes require a new contract and baseline.
 - Allowed paths: `<project-relative paths or globs>`
 - Forbidden paths: `<credentials, generated state, user-owned areas, or other exclusions>`
 - Validation command: `<one literal command>`
+- Optional full-suite command: `<literal command or none>`; never guess it.
+- Tracked test globs: `<project-relative, case-insensitive globs>`
+- Test baseline record: `<project-relative evidence path>`
+- Ephemeral probe directory: `<project-relative evidence path>`
+- Test admission record: `<project-relative evidence path>`
+- Permanent test budget: `<new invariants / changed files / added lines>`
+- Full-suite policy: `<denied or explicitly allowed in HARDEN with reason>`
 - Validation working directory: `<project-relative path>`
 - Evidence directory: `<project-relative path>`
 - Required evidence: `<baseline, diff, semantic validation result, artifacts, handoff>`
@@ -20,7 +28,8 @@
 - Manual/human acceptance: `<owner, required yes/no, and explicit criteria>`
 - Cleanup: reuse only suitable panes; record workflow-created pane IDs; close only recorded
   workflow-created panes; stop workflow sessions in reused panes; stop every recorded sentinel
-  process; leave pre-existing panes open.
+  process and let its runtime archive the state; never delete or manually rename sentinel state;
+  leave pre-existing panes open.
 
 ## Optional specialists
 
@@ -35,6 +44,9 @@
 
 Before editing, validate the project profile and run contract with the installed
 `codex-herdr-sol-luna`
-validator. Preserve the existing workspace delta. Stop after the current atomic action when a stop
+validator and snapshot the deterministic Test Distillation Gate. During BUILD, do not edit tracked
+tests. Put temporary probes only in the declared ephemeral directory and remove them before gate
+settlement. Classify proposed-test failures as BUG, BAD_ORACLE, or LOW_VALUE before changing product
+code. Preserve the existing workspace delta. Stop after the current atomic action when a stop
 condition fires, then return an evidence-backed handoff. Never expose credentials or inspect their
 contents.

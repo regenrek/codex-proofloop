@@ -56,6 +56,7 @@ class VariantTests(unittest.TestCase):
                 documents = [
                     directory / "assets" / "project-profile.template.json",
                     directory / "assets" / "run-contract.template.json",
+                    directory / "assets" / "test-admission.template.json",
                 ]
                 if features["planr"]:
                     documents.append(directory / "examples" / "planr-project-profile.json")
@@ -97,8 +98,11 @@ class VariantTests(unittest.TestCase):
                 profile = load_json(directory / "assets" / "project-profile.template.json")
                 contract = load_json(directory / "assets" / "run-contract.template.json")
                 policy = profile["sentinel_policy"]
-                self.assertEqual(2, profile["schema_version"])
-                self.assertEqual(2, contract["schema_version"])
+                self.assertEqual(3, profile["schema_version"])
+                self.assertEqual(3, contract["schema_version"])
+                self.assertNotIn("tests_allowed", contract)
+                self.assertEqual("build", contract["phase"])
+                self.assertEqual(0, contract["test_policy"]["permanent"]["max_new_invariants"])
                 self.assertIn("silent-sentinel", profile["roles"]["luna"]["allowed_modes"])
                 self.assertNotIn("heartbeat-sentinel", profile["roles"]["luna"]["allowed_modes"])
                 self.assertEqual("off", policy["default_mode"])
@@ -123,6 +127,26 @@ class VariantTests(unittest.TestCase):
             for variant in VARIANTS
         ]
         self.assertTrue(all(script == scripts[0] for script in scripts[1:]))
+
+    def test_variants_ship_one_identical_test_gate_runtime(self) -> None:
+        scripts = [(ROOT / variant / "scripts" / "test_distillation_gate.py").read_bytes() for variant in VARIANTS]
+        self.assertTrue(all(script == scripts[0] for script in scripts[1:]))
+        references = [(ROOT / variant / "references" / "testing.md").read_bytes() for variant in VARIANTS]
+        self.assertTrue(all(item == references[0] for item in references[1:]))
+
+    def test_sentinel_packet_requires_the_exact_process_record_path(self) -> None:
+        for variant in VARIANTS:
+            with self.subTest(variant=variant):
+                directory = ROOT / variant
+                skill = (directory / "SKILL.md").read_text(encoding="utf-8")
+                orchestration = (directory / "references" / "orchestration.md").read_text(
+                    encoding="utf-8"
+                )
+                self.assertIn("cleanup.sentinel_process_record", skill)
+                self.assertIn("repeat that exact path verbatim", skill)
+                self.assertIn("report `MISSING` at that path", skill)
+                self.assertIn("repeat this exact process-record path verbatim", orchestration)
+                self.assertIn("Do not substitute, shorten, or infer a filename", orchestration)
 
     def test_optional_tool_names_are_absent_from_smaller_variants(self) -> None:
         sol_luna_text = variant_text(ROOT / "codex-herdr-sol-luna")

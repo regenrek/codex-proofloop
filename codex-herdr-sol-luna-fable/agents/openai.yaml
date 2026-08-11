@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex Herdr: Sol, Luna + Fable"
-  short_description: "Coordinate bounded Sol, Luna, and Fable work"
-  default_prompt: "Use $codex-herdr-sol-luna-fable to coordinate this task through a bounded Herdr workflow."
+  short_description: "Bounded work with test distillation"
+  default_prompt: "Use $codex-herdr-sol-luna-fable to run this task with the deterministic BUILD/HARDEN test gate."

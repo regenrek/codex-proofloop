@@ -1,6 +1,7 @@
 # Orchestration reference
 
 Use this reference only after the project profile and run contract validate.
+Test policy and admission are defined in [testing.md](testing.md).
 
 ## Contents
 
@@ -51,6 +52,10 @@ workflow-owned pane; never detach it as a daemon or leave it running for a later
 Start the sentinel before the writer's first prompt so its baseline cannot include earlier session
 history. Run the bundled runtime by absolute path:
 
+Pre-prompt Codex or MCP startup may briefly report `working` and then `idle`. Treat that as pending,
+not settlement. The runtime arms settlement only after it binds the exact writer session and observes
+either `working` with that session or a non-metadata record in that session file.
+
 ```bash
 python3 /absolute/path/to/selected-skill/scripts/silent_sentinel.py \
   --target 'exact-writer-target' \
@@ -58,6 +63,13 @@ python3 /absolute/path/to/selected-skill/scripts/silent_sentinel.py \
   --project-profile '/absolute/project/root/path/to/project-profile.json' \
   --run-contract '/absolute/project/root/path/to/run-contract.json'
 ```
+
+Before prompting Luna, resolve the contract's `cleanup.sentinel_process_record` against the project
+root. Include the resulting absolute path and this exact final-report rule in the packet:
+
+> After the watcher exits, report its exit code and repeat this exact process-record path verbatim:
+> `<absolute configured path>`. If that exact file does not exist, report `MISSING` at the same path.
+> Do not substitute, shorten, or infer a filename.
 
 The script atomically records its exact process id, owner, state path, start time, and deadline. It
 polls internally and writes health to the contract's external state record. It sends no healthy,
@@ -122,6 +134,8 @@ creating or reusing a pane:
       "started_at_utc": "ISO-8601 timestamp",
       "deadline_utc": "ISO-8601 timestamp",
       "state_record": ".codex-herdr/evidence/run-id/sentinel-state.json",
+      "retired_state_record": null,
+      "state_retired_at_utc": null,
       "status": "running",
       "stopped_at_utc": null
     }
@@ -151,6 +165,11 @@ identifiers, not product decision authority. A verifier receives frozen source a
 failures.
 
 ## Evidence and settlement
+
+Run the deterministic gate snapshot before the first writer edit. BUILD returns an accepted candidate
+without tracked test edits; a separate HARDEN contract distills temporary candidates and settles with
+proof-carrying admission. The optional sentinel consumes the same gate instead of a parallel path
+heuristic.
 
 Record semantic results, not only exit codes. Evidence should identify the literal command, working
 directory, start and duration, timeout, exit code, tests discovered/executed/passed/failed when
@@ -184,7 +203,10 @@ After integration:
 
 1. Stop each exact workflow-started process and record its exit time.
 2. Stop each workflow-started agent session and read its final state once.
-3. Retire unique sentinel state so another run cannot load old notices.
+3. Let the sentinel runtime atomically rename its final state to the run-owned
+   `sentinel-state.retired.<timestamp>.json` path and record that path as `retired_state_record`.
+   Sol and the parent workflow must never delete or manually rename sentinel state. If forced
+   termination prevents retirement, preserve the active state and report the cleanup failure.
 4. Close each exact pane whose record says `created_by_workflow: true`.
 5. Leave every pre-existing pane open, even when its temporary agent session has stopped.
 6. Mark closed entries with a timestamp and confirm no completed workflow-created sentinel or

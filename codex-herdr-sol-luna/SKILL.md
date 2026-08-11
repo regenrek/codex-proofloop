@@ -43,20 +43,30 @@ decision.
 
 ## Run the loop
 
-1. Snapshot the current repository delta and record it as user-owned baseline state.
-2. Preflight Herdr only when a Luna pane is selected. Do not install, upgrade, or reconfigure
-   Herdr automatically.
-3. Reuse a suitable pane when possible, but start a fresh Luna agent session for each verifier or
-   interactive operation. Immediately record every workflow-created pane and agent session.
-   For a sentinel, also record its process, state path, owner, and deadline before it starts.
-4. Give each agent only the task source, contract, profile, necessary files, acceptance criteria,
-   baseline facts, and handoff schema. Prohibit child agents and scope expansion.
-5. Keep one coherent Sol patch batch within the contract. At checkpoint or stop conditions, finish
-   only the current atomic action and return evidence-backed state.
-6. Run the profile's exact validation command. Treat zero discovered tests, missing artifacts, timeouts,
-   or semantic failures as non-passing evidence.
-7. Integrate the decision, write the handoff, stop every workflow-started process, and clean up all
-   workflow-owned completed panes.
+1. Read policy and validate the profile and run contract.
+2. Before the first edit, run `python3 scripts/test_distillation_gate.py snapshot` with the absolute
+   project, profile, and contract paths.
+3. Start the optional silent sentinel only when selected.
+4. Execute BUILD or HARDEN exactly as the contract declares.
+5. Run the literal focused validation command.
+6. Run `test_distillation_gate.py settle` with the same three paths.
+7. Use optional independent review once, then let Sol integrate the decision.
+8. Stop workflow-owned processes, clean up recorded panes, and return one evidence-backed handoff.
+
+When a sentinel stops, its bundled runtime atomically archives the final state and records the
+archive path in the process record. Sol and the parent workflow must never delete or manually rename
+the sentinel state. Resolve `cleanup.sentinel_process_record` to an absolute path before prompting
+Luna; require Luna to repeat that exact path verbatim after exit or report `MISSING` at that path.
+Never let an agent infer an evidence filename from a naming convention.
+
+The test lifecycle is `BUILD -> ACCEPT -> HARDEN -> DISTILL -> PROMOTE OR DROP`. Do not add tracked
+tests while implementation is still changing. Temporary probes belong only in the declared ephemeral
+directory and must be removed before settlement. A new HARDEN contract and baseline follow acceptance;
+never switch phases inside one contract.
+
+Production code is not subordinate to speculative tests. Classify a failed proposal as `BUG`,
+`BAD_ORACLE`, or `LOW_VALUE` before changing production code. Keep runtime, temporary validation,
+permanent tests, and docs separable. See [references/testing.md](references/testing.md).
 
 Read [references/orchestration.md](references/orchestration.md) when operating Herdr panes, defining
 evidence, handling stop conditions, or migrating an existing workflow.

@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "kind": "codex-herdr-sol-luna-fable-planr/run-contract",
   "task": {
     "id": "replace-me",
@@ -8,12 +8,19 @@
     "hypothesis": "replace-with-the-causal-or-design-hypothesis"
   },
   "project_profile": "path/to/project-profile.json",
-  "phase": "accepted-verification",
+  "phase": "build",
   "writer": "sol",
   "allowed_paths": [
     "replace/with/project-relative/path/**"
   ],
-  "tests_allowed": true,
+  "test_policy": {
+    "baseline_record": ".codex-herdr/evidence/replace-with-run-id/test-baseline.json",
+    "result_record": ".codex-herdr/evidence/replace-with-run-id/test-gate.json",
+    "ephemeral_directory": ".codex-herdr/evidence/replace-with-run-id/probes",
+    "admission_record": ".codex-herdr/evidence/replace-with-run-id/test-admission.json",
+    "permanent": {"max_new_invariants": 0, "max_changed_test_files": 0, "max_added_test_lines": 0},
+    "full_suite": {"allowed": false, "reason": null}
+  },
   "luna_mode": null,
   "fable_stage": null,
   "validation": {
@@ -32,6 +39,7 @@
       "baseline",
       "diff",
       "validation-result",
+      "test-gate",
       "handoff",
       "pane-ownership"
     ]

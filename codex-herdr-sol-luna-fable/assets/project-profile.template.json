@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "kind": "codex-herdr-sol-luna-fable/project-profile",
   "project": {
     "name": "replace-me",
@@ -60,13 +60,21 @@
   "validation": {
     "cwd": ".",
     "command": "replace-with-one-focused-command",
+    "full_suite_command": null,
     "timeout_seconds": 900
+  },
+  "testing": {
+    "strategy": "distill",
+    "tracked_test_globs": ["tests/**", "test/**", "spec/**", "__tests__/**", "**/tests/**", "**/test/**", "**/spec/**", "**/__tests__/**", "test_*.*", "*_test.*", "**/test_*.*", "**/*_test.*", "*.test.*", "*.spec.*", "**/*.test.*", "**/*.spec.*", "*test.java", "*tests.java", "**/*test.java", "**/*tests.java", "*test.kt", "*tests.kt", "**/*test.kt", "**/*tests.kt", "*test.cs", "*tests.cs", "**/*test.cs", "**/*tests.cs"],
+    "build": {"permanent_test_edits": "deny", "full_suite": "deny"},
+    "harden": {"permanent_test_edits": "admission-required", "max_new_invariants": 3, "max_changed_test_files": 3, "max_added_test_lines": 240, "full_suite": "ci-or-explicit"}
   },
   "evidence": {
     "directory": ".codex-herdr/evidence",
     "required": [
       "diff",
       "validation-result",
+      "test-gate",
       "handoff"
     ]
   },
