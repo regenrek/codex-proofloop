@@ -1,0 +1,4 @@
+interface:
+  display_name: "Proofloop"
+  short_description: "Behavioral checks with an independent Luna reviewer"
+  default_prompt: "Use $proofloop to verify this change with repeatable execution evidence, the default GPT-6 Luna checker at max reasoning, and justified test reduction."

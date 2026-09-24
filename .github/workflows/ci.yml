@@ -1,30 +1,33 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
-
 permissions:
   contents: read
-
 jobs:
-  test:
+  acceptance:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.13"]
+        node: [24, 26]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Compile scripts
-        run: python -m compileall skills/*/scripts
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-      - name: Discover installable skills
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+      - name: Verify bundled runtime matches TypeScript
+        run: git diff --exit-code -- skills/proofloop/scripts
+      - run: npm run acceptance
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cli-acceptance-node-${{ matrix.node }}
+          path: .proofloop/acceptance/result.json
+      - name: Discover installable skill
         run: npx --yes skills@1.5.22 add . --list

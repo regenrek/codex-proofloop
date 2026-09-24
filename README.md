@@ -2,118 +2,113 @@
 
 [![Status: Experimental](https://img.shields.io/badge/status-experimental-orange)](https://github.com/regenrek/codex-proofloop)
 
-![Proofloop banner](assets/proofloop-banner.png)
+![Proofloop banner](https://raw.githubusercontent.com/regenrek/codex-proofloop/main/assets/proofloop-banner.png)
 
-Proofloop keeps coding-agent tests useful without letting every debugging experiment become permanent.
+Keep coding-agent tests useful. Define behavior and failure modes before implementation, run focused
+E2E or integration checks, retain repeatable artifacts, and justify permanent test changes.
 
-`BUILD → ACCEPT → HARDEN → DISTILL`
+**One native Codex skill. One TypeScript runner. No runtime npm dependencies.**
 
-**Catch aggressively. Commit reluctantly.**
+## Install
 
-> [!WARNING]
-> Proofloop is an experimental workflow guardrail, not a filesystem sandbox. During a correctly
-> completed run, its gate detects and rejects test deletions and renames, but it cannot prevent an
-> agent from modifying files or automatically restore them. Use a clean Git branch, verify your test
-> globs, and review the final diff—especially in large or unfamiliar codebases.
+Requires Node 24+ and Git. Install the CLI:
 
-## Why this exists
-
-Sol may create temporary tests, probes, scripts, fixtures, and diagnostics while exploring a change.
-Those can be valuable in the moment, but they should not automatically live in your repository
-forever.
-
-Proofloop makes them ephemeral by default. A test stays only when it protects a unique, accepted,
-observable behavior that existing tests do not already cover.
-
-## Choose a skill
-
-| Skill | Includes | Needs Herdr? |
-| --- | --- | --- |
-| `proofloop-sol-luna` | Native Sol + optional bounded Luna review | No |
-| `proofloop-herdr-sol-luna` | Sol + optional Luna sentinel or review | Yes |
-| `proofloop-herdr-sol-luna-fable` | Sol + Luna + one bounded Fable review | Yes |
-| `proofloop-herdr-sol-luna-fable-planr` | Sol + Luna + Fable + Planr task evidence | Yes |
-
-Each directory under `skills/` is standalone. Install only the one you need.
-
-## How it works
-
-1. **BUILD:** Sol implements the candidate. Temporary probes stay in a run-owned evidence folder;
-   tracked tests cannot be changed.
-2. **ACCEPT:** Deterministic checks or a human accept the behavior.
-3. **HARDEN:** Only tests with explicit evidence and a small declared budget may enter the permanent
-   suite.
-4. **DISTILL:** Keep the smallest stable test that protects the invariant. Drop the rest.
-
-![How Proofloop works: BUILD, ACCEPT, HARDEN, DISTILL, then PROMOTE or DROP](assets/proofloop-how-it-works-excalidraw.png)
-
-The deterministic gate uses Git to notice changes even when files were created by shell commands. It
-preserves changes that were already present before the run and works with Sol alone. Luna remains
-optional.
-
-## A small comparison
-
-We ran one simple Pokedex test with the same task and starter tests: normal Sol on one side,
-Proofloop Sol + Luna on the other. Both produced a working app. Proofloop finished faster and added no
-permanent tests; Vanilla added three focused tests.
-
-| Vanilla Sol | Proofloop Sol + Luna |
-| :---: | :---: |
-| ![Vanilla Sol Pokedex](assets/benchmark/vanilla-pokedex.png) | ![Proofloop Sol and Luna Pokedex](assets/benchmark/proofloop-pokedex.png) |
-
-This was only one simple test, not a scientific or definitive benchmark.
-[Read the understandable benchmark result.](docs/benchmark-minimal.md)
-
-## Install with `npx skills`
-
-Browse and choose interactively:
-
-```bash
-npx skills add regenrek/codex-proofloop
+```sh
+npm install -g codex-proofloop
+proofloop --help
 ```
 
-Or install one skill directly for Codex:
+Or run it without a global install:
 
-```bash
-npx skills add regenrek/codex-proofloop --skill proofloop-sol-luna -g -a codex -y
+```sh
+npx --yes codex-proofloop@2.0.0 --help
 ```
 
-For the smallest Herdr setup:
+For the complete Codex workflow, install the self-contained skill:
 
-```bash
-npx skills add regenrek/codex-proofloop --skill proofloop-herdr-sol-luna -g -a codex -y
+```sh
+npx skills add regenrek/codex-proofloop --skill proofloop -g -a codex -y
 ```
 
-You can also clone the repository and copy any single directory from `skills/` into your skills
-folder. Installing a skill starts no watcher, daemon, heartbeat, or background service.
+Then invoke `$proofloop`. It includes compiled JavaScript; skill users do not need Python, a compiler,
+Herdr or a background service. The installation command uses the version on GitHub; local unpushed
+changes can be installed with `npx skills add . --skill proofloop -g -a codex -y` from this repository.
 
-## Safety by default
+## Run
 
-- Sol is the only implementation writer.
-- Luna and Fable are read-only and optional.
-- The native skill has no Herdr dependency or sentinel runtime.
-- The Herdr sentinel is opt-in, attached to one run, and time-bounded.
-- BUILD defaults to zero permanent test changes.
-- A full test suite is never guessed or used as the normal iteration command.
-- Credential paths are excluded from evidence and baseline snapshots.
+Adapt [the policy template](skills/proofloop/assets/proofloop.template.json) to the project's actual
+commands and save it as `proofloop.json`. Add `.proofloop/` to the root `.gitignore`. Define criteria,
+concrete failure modes, allowed paths and planned test changes **before editing**.
+
+From this repository checkout:
+
+```sh
+node skills/proofloop/scripts/cli.mjs start --project /path/to/project --id feature-123
+# Implement within the policy.
+node skills/proofloop/scripts/cli.mjs run --project /path/to/project --id feature-123
+# After the assigned Luna checker returns its review:
+node skills/proofloop/scripts/cli.mjs finish --project /path/to/project --id feature-123 --review .proofloop/checker-response.json
+```
+
+From an installed skill, use the absolute path to its `scripts/cli.mjs`. The npm package exposes
+the same runner as `proofloop`; replace the `node .../cli.mjs` prefix above with `proofloop`.
+The CLI executes checks; the Codex skill coordinates the independent Luna task.
+
+The runner records real process exits, standard Node TAP or Playwright JSON reports, fresh artifacts
+and the checked Git working state. Failed, skipped, zero-test and stale runs cannot finish. Source
+changes committed during a run still count. Planned test deletions are supported; unexplained changes
+are rejected. Test count and line budgets do not determine quality.
+
+[Runner contract](skills/proofloop/references/runner.md) covers reporter setup, paths and limitations.
+[Testing guidance](skills/proofloop/references/testing.md) explains admission and consolidation.
+
+## Independent Luna check
+
+The skill uses a native GPT-6 Luna checker with max reasoning by default. It resolves the assignment
+and reuses a suitable existing project task, or creates one when task creation is authorized. Apply
+existing authorization without asking again. The implementation task keeps its chosen model.
+The project prompt only needs `$proofloop` and the desired outcome; model and role are skill defaults.
+Missing capabilities or required authorization are reported explicitly, without silently skipping
+review. Execution without independent review requires an explicit user choice.
+
+The policy template contains an empty checker task ID. The skill fills it with the actual assigned
+task ID before `start`. Direct CLI use supports `review: null` for execution-only workflows, including
+this repository's CLI self-check; that does not constitute the skill's default independent review.
+
+[Native task workflow](skills/proofloop/references/orchestration.md) describes ownership, handoff and
+review. Required review remains incomplete until supplied. A local review file is explicitly an
+unauthenticated attestation; the host task history establishes who actually performed it.
+
+## What this does and does not establish
+
+A completed run establishes that the selected checks passed against the recorded local state and
+that scope/artifact/review requirements were satisfied. It does not establish that those checks cover
+every product risk, that an external deployment stayed unchanged, or that an agent cannot edit local
+records. There is no filesystem sandbox. Use meaningful acceptance criteria and inspect the diff.
 
 ## Development
 
-```bash
-python3 -m compileall skills/*/scripts
-python3 -m unittest discover -s tests -v
-npx skills add . --list
+```sh
+npm ci
+npm run format
+npm run lint
+npm run format:check
+npm run build
+npm run acceptance
 ```
 
-See [CHANGELOG.md](CHANGELOG.md) for releases. MIT licensed; see [LICENSE](LICENSE).
+Oxlint checks source and acceptance code; Oxfmt keeps code and configuration consistently formatted.
+CI enforces both. `npm run lint:fix` applies safe lint fixes. Generated runtime files are formatted
+automatically during the build.
 
-## Sources
+The CLI acceptance script uses disposable real Git repositories and subprocesses. It writes a
+repeatable report to `.proofloop/acceptance/result.json`. [Failure cases were recorded before the
+implementation](https://github.com/regenrek/codex-proofloop/blob/main/docs/runner-acceptance.md). Generated `.mjs` files are committed with the skill so it
+works when copied alone; regenerate them from `src/*.mts`, never edit them independently.
 
-Proofloop is inspired by Meta's distinction between temporary catching tests and permanent hardening
-tests, together with research suggesting that test quantity alone is a weak signal of coding-agent
-success.
+This is a breaking simplification of the experimental v1 workflow: four Python variants become one
+TypeScript skill. Old profiles, contracts and run records are not migrated. Finish existing runs
+with their installed version, then create one new policy and run for v2. The prior
+[Pokedex comparison](https://github.com/regenrek/codex-proofloop/blob/main/docs/benchmark-minimal.md) describes v1 and is not evidence of v2 effectiveness.
 
-- [Rethinking the Value of Agent-Generated Tests](https://arxiv.org/abs/2602.07900)
-- [The Death of Traditional Testing: JiTTesting at Meta](https://engineering.fb.com/2026/02/11/developer-tools/the-death-of-traditional-testing-agentic-development-jit-testing-revival/)
-- [Mutation-Guided LLM-based Test Generation at Meta](https://arxiv.org/abs/2501.12862)
-- [SWE-Mutation: Can LLMs Generate Reliable Test Suites?](https://arxiv.org/abs/2605.22175)
+MIT licensed. See [CHANGELOG.md](https://github.com/regenrek/codex-proofloop/blob/main/CHANGELOG.md) and [LICENSE](LICENSE).

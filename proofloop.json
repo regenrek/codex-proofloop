@@ -1,0 +1,49 @@
+{
+  "goal": "The public CLI refuses incomplete or stale verification and supports justified test retirement",
+  "allowedPaths": [
+    "src/**",
+    "scripts/**",
+    "skills/proofloop/**",
+    "docs/**",
+    "README.md",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    ".oxlintrc.json",
+    ".oxfmtrc.json",
+    ".github/**",
+    ".gitignore"
+  ],
+  "testPatterns": ["scripts/acceptance.mjs"],
+  "criteria": [
+    {
+      "id": "cli-boundaries",
+      "behavior": "Public CLI acceptance scenarios succeed in disposable real Git repositories",
+      "failures": [
+        "Committed or staged changes bypass scope",
+        "Failed, missing, skipped or stale execution is accepted",
+        "Artifact replacement or missing review is accepted",
+        "Planned retirement is rejected or unexplained test changes pass"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "cli-acceptance",
+      "criteria": ["cli-boundaries"],
+      "command": ["node", "--test", "--test-reporter=tap", "scripts/acceptance.mjs"],
+      "cwd": ".",
+      "timeoutSeconds": 120,
+      "reporter": "node-tap",
+      "artifacts": ["result.json"]
+    }
+  ],
+  "testChanges": [],
+  "environment": {
+    "target": "local disposable Git repositories and CLI processes",
+    "seed": "value-2"
+  },
+  "review": null
+}

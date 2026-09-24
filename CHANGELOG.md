@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## [2.0.0] - 2026-09-24
+
+- Replaced four Python variants with one native `proofloop` skill and a TypeScript CLI using Node's `parseArgs`.
+- Removed Herdr/Sentinel/Fable/Planr runtimes, duplicated schemas and tests of variant text.
+- Replaced manual phase contracts and test-line budgets with one frozen policy and generated execution records.
+- Added full working-state fingerprints, actual check execution, reporter validation, artifact freshness and planned test retirement.
+- Made native GPT-6 Luna/max review the skill default, with evidence-bound, explicitly unauthenticated review attestations.
+- Ported useful Git/CLI boundary coverage to 22 repeatable system acceptance scenarios.
+- Added Oxlint and Oxfmt with CI enforcement and formatted bundled runtime output.
+- Requires Node 24+; bundled JavaScript has no runtime npm dependencies. No automatic conversion of v1 profiles or run records.
+
+## Earlier unreleased v1 work
 
 - Added a prominent Experimental warning that explains Proofloop's filesystem and recovery boundary.
 - Renamed the product to Proofloop and moved every standalone skill under `skills/`.

@@ -6,12 +6,8 @@
 *.log
 *.pem
 .proofloop/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.coverage
-htmlcov/
-.venv/
-venv/
+node_modules/
+*.tgz
 .idea/
 .vscode/
+__pycache__/

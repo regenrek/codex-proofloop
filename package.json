@@ -1,0 +1,41 @@
+{
+  "name": "codex-proofloop",
+  "version": "2.0.0",
+  "description": "Small evidence-based verification loop for coding agents",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/regenrek/codex-proofloop.git"
+  },
+  "bin": {
+    "proofloop": "skills/proofloop/scripts/cli.mjs"
+  },
+  "files": [
+    "skills/proofloop",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && oxfmt --write skills/proofloop/scripts",
+    "acceptance": "node --test --test-reporter=tap scripts/acceptance.mjs",
+    "prepack": "npm run build",
+    "lint": "oxlint --deny-warnings src scripts",
+    "lint:fix": "oxlint --fix --deny-warnings src scripts",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check ."
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

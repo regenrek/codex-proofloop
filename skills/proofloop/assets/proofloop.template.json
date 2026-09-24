@@ -1,0 +1,48 @@
+{
+  "goal": "A user can complete the selected product journey",
+  "allowedPaths": ["src/**", "e2e/**"],
+  "testPatterns": [
+    "tests/**",
+    "test/**",
+    "spec/**",
+    "e2e/**",
+    "**/tests/**",
+    "**/test/**",
+    "**/spec/**",
+    "**/e2e/**",
+    "**/__tests__/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*.integration.*",
+    "**/test_*.*",
+    "**/*_test.*"
+  ],
+  "criteria": [
+    {
+      "id": "journey",
+      "behavior": "The selected public journey reaches its expected durable outcome",
+      "failures": [
+        "The UI action never reaches the backend",
+        "A retry repeats the durable side effect"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "journey",
+      "criteria": ["journey"],
+      "command": ["node", "--test", "--test-reporter=tap", "e2e/journey.test.mjs"],
+      "cwd": ".",
+      "timeoutSeconds": 120,
+      "reporter": "node-tap",
+      "artifacts": ["outcome.json"]
+    }
+  ],
+  "testChanges": [],
+  "environment": { "target": "local synthetic development", "seed": "journey-v1" },
+  "review": {
+    "threadId": "",
+    "model": "gpt-6-luna",
+    "reasoning": "max"
+  }
+}
