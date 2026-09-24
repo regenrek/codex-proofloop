@@ -10,6 +10,9 @@ need to become permanent tests. The current task owns implementation; a native `
 `max` reasoning independently checks the candidate by default. Keep the current implementation model.
 The user supplies the project outcome; this skill supplies the checker model and coordination.
 
+Keep verification proportional to the change. Spend review effort on concrete failure modes the
+selected checks could miss. No mandatory audit report, feedback diary or test-deletion quota.
+
 ## Set up the checker
 
 Read [orchestration.md](references/orchestration.md) before starting a run. Reuse a suitable existing
@@ -48,15 +51,21 @@ JavaScript and needs only Node 24+ and Git; installation does not start anything
 ```sh
 node /absolute/skill/path/scripts/cli.mjs start --project /absolute/project --id task-123
 # Implement within the frozen policy. Temporary probes may live under .proofloop/.
-node /absolute/skill/path/scripts/cli.mjs run --project /absolute/project --id task-123
+node /absolute/skill/path/scripts/cli.mjs run --project /absolute/project --id task-123 --compact
 # After the assigned checker returns its actual review:
-node /absolute/skill/path/scripts/cli.mjs finish --project /absolute/project --id task-123 --review .proofloop/checker-response.json
+node /absolute/skill/path/scripts/cli.mjs finish --project /absolute/project --id task-123 --review .proofloop/checker-response.json --compact
 ```
 
 Read [runner.md](references/runner.md) when selecting reporters, artifact paths or diagnosing an
 incomplete run. Never edit generated run records to make a check pass. A policy change requires a
 new run ID. Source changes after a check require rerunning the checks. An intermediate commit does
 not hide file changes from the baseline.
+
+Use native `vitest-json` for existing Vitest suites and `exit-code` for build/lint/typecheck commands;
+do not write a Node-test wrapper just to make these commands fit. Each criterion still needs a
+behavioral check. Direct local file arguments are hashed even when ignored. Declare additional
+ignored helpers, configs and fixtures in each check's `inputs`; the runner does not trace imports
+or package scripts. Keep outputs out of `inputs`.
 
 The runner records process results; it cannot decide whether an assertion represents the right
 product requirement. Classify failures as a real defect, wrong expectation or low-value check before
@@ -71,7 +80,12 @@ a watcher, or another manager.
 
 ## Completion
 
-Return the executed command, verified behavior, changed/retired tests and their reasons, artifact
-paths, checker findings and remaining limitations. `status` recalculates freshness. Do not report a
-historical `finish.json` as current after further edits. An E2E trace or result must be repeatable on
-the declared environment; a screenshot or a typed `pass` is insufficient.
+Use `status --compact` for freshness and hand off its record path, relevant diff and a short objective.
+The runner stores commands, hashes and artifacts; do not transcribe them into a second report. Read
+full records and specific log sections only as needed. Run the selected checks once per candidate;
+avoid a duplicate preflight of the same commands.
+
+Return a short outcome, actionable findings or important limits, and the final record path. Mention
+test additions/deletions with their reason when applicable. Stop once checks and the independent
+review pass. Do not add another audit or generate a feedback report unless requested. `status`
+recalculates freshness; a historical `finish.json` does not establish freshness after further edits.

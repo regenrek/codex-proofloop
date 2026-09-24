@@ -35,6 +35,7 @@
       "cwd": ".",
       "timeoutSeconds": 120,
       "reporter": "node-tap",
+      "inputs": [],
       "artifacts": ["outcome.json"]
     }
   ],

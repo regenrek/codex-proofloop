@@ -4,7 +4,8 @@ export interface Check {
   command: string[];
   cwd: string;
   timeoutSeconds: number;
-  reporter: "node-tap" | "playwright-json";
+  reporter: "node-tap" | "playwright-json" | "vitest-json" | "exit-code";
+  inputs?: string[];
   artifacts: string[];
 }
 export interface Policy {
@@ -118,19 +119,26 @@ export function validatePolicy(value: unknown): Policy {
       "Timeout must be 1..3600 seconds",
     );
     requireThat(
-      c.reporter === "node-tap" || c.reporter === "playwright-json",
+      typeof c.reporter === "string" &&
+        ["node-tap", "playwright-json", "vitest-json", "exit-code"].includes(c.reporter),
       "Unsupported reporter",
     );
     texts(c.artifacts, false);
     c.artifacts.forEach((p) => safePath(p));
+    if (c.inputs !== undefined) {
+      texts(c.inputs, false);
+      c.inputs.forEach((p) => safePath(p));
+    }
     for (const id of c.criteria) {
       requireThat(criteria.has(id), `Unknown criterion: ${id}`);
-      covered.add(id);
+      if (c.reporter !== "exit-code") {
+        covered.add(id);
+      }
     }
   }
   requireThat(
     [...criteria].every((id) => covered.has(id)),
-    "Every criterion needs an executed check",
+    "Every criterion needs an executed behavioral check (not only exit-code)",
   );
   requireThat(Array.isArray(value.testChanges), "testChanges array required");
   const paths = new Set<string>();

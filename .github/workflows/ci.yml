@@ -22,7 +22,7 @@ jobs:
       - run: npm run format:check
       - run: npm run build
       - name: Verify bundled runtime matches TypeScript
-        run: git diff --exit-code -- skills/proofloop/scripts
+        run: git diff --exit-code -- skills/proofloop/scripts skills/proofloop/version.json
       - run: npm run acceptance
       - uses: actions/upload-artifact@v4
         if: always()

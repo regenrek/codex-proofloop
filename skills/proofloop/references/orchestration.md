@@ -24,15 +24,21 @@ Before `start`, put the actual assignment in the policy:
 If the user explicitly opts out of independent review, set `review: null` before starting and state
 that the run contains execution evidence only. Do not use this to bypass an unavailable checker.
 
-After `run`, `status` returns the candidate, evidence digest, criteria, commands and artifacts. Send
-this packet, the relevant diff and test-retirement rationale to the checker, with the main task's
-return ID. Ask it to inspect the actual artifacts and observable behavior, identify relevant missing
-cases, and return actionable findings. Do not ask it to mirror the implementation with new unit tests.
-No nested delegation or broader feature work. End the handoff turn when using asynchronous return
-messaging; do not run a progress-only polling conversation.
+After `run`, use `status --compact`. Send its record path, a short objective, the relevant diff/files,
+any test-retirement rationale and the main task's return ID. The record already contains the
+candidate, evidence digest, criteria, commands and artifact paths. Do not copy whole logs, hashes or
+previous reports into messages. Reuse checker context and send only changes on subsequent handoffs.
 
-The checker returns criteria assessed, concrete findings, limitations and the evidence digest it
-reviewed. After a real host response, record the response as an attestation under `.proofloop/`, e.g.:
+Start with one focused review pass: inspect the relevant diff and selected execution evidence, then
+independently probe a concrete, material coverage gap if needed. Do not rerun the entire suite merely
+to duplicate existing evidence, or add unit tests mirroring the implementation. Small changes need
+small reviews. No nested delegation or broader feature work. End the handoff turn when using
+asynchronous return messaging; no polling, acknowledgment exchanges or progress-only messages.
+
+The checker returns the compact attestation below. For a failure, include the behavior, file or
+reproduction and required correction in `findings`; mention material limits in `summary`. A separate
+Markdown success report is unnecessary. After a real host response, store that actual response under
+`.proofloop/`, e.g.:
 
 ```json
 {
@@ -48,6 +54,9 @@ reviewed. After a real host response, record the response as an attestation unde
 Run `finish --review .proofloop/checker-response.json`. Missing/mismatched review, unresolved findings
 or any failed execution remains incomplete. A valid review is stored for later `status` calls. Fixes
 require new execution and review of the new evidence; do not reuse an earlier digest.
+Re-review the fix and affected risks only. Continue review rounds only for concrete unresolved
+findings; report a blocker when those cannot be resolved within the assignment. Stop when the
+required checks and review pass. Do not expand a successful review into speculative hardening.
 
 **Provenance:** the runner validates the reference and completeness, not the model or task identity.
 It labels this as an unauthenticated attestation. The host task history supplies its origin. Never

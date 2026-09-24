@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.0] - 2026-09-24
+
+- Bind directly invoked local files and optional declared `inputs` to execution evidence, including ignored check drivers and helpers. Recheck them during execution and completion.
+- Add direct `vitest-json` and supporting `exit-code` checks, avoiding Node-test wrappers for Vitest, builds, lint and typechecks. Exit-code checks claim no tests and cannot replace behavioral evidence.
+- Preserve test counts for complete negative TAP reports; distinguish incomplete test outcomes from malformed reports and empty artifacts from missing files.
+- Add `--version`, including copied skills, and opt-in `--compact` output linking full execution/status/finish records.
+- Reduce skill overhead: compact file-based handoffs, one focused review, targeted fix reviews and no mandatory success report or feedback diary.
+- Existing policy files remain supported. Finish active runs before upgrading; old execution evidence needs rerunning under the changed runner.
+
 ## [2.0.0] - 2026-09-24
 
 - Replaced four Python variants with one native `proofloop` skill and a TypeScript CLI using Node's `parseArgs`.

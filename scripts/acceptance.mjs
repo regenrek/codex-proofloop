@@ -1,7 +1,7 @@
 // Public CLI acceptance: actual processes, temporary Git repositories, no helper mocks.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -158,7 +158,9 @@ await scenario("actual assertion failure and failed retry invalidate success", {
   start(f);
   f.good("run");
   f.write("src/value.txt", "3\n");
-  rejects(f, "run", "CHECK_FAILED");
+  const failed = rejects(f, "run", "CHECK_FAILED");
+  assert.equal(failed.checks[0].tests, 1);
+  assert.ok(!failed.checks[0].problems.some((p) => p.startsWith("REPORT_INVALID")));
   f.write("src/value.txt", "2\n");
   rejects(f, "finish", "CHECK_FAILED");
 });
@@ -166,7 +168,7 @@ for (const [name, code, reason] of [
   [
     "zero tests",
     "console.log('TAP version 13\\n1..0\\n# tests 0\\n# pass 0\\n# fail 0\\n# cancelled 0\\n# skipped 0\\n# todo 0')",
-    "REPORT_INVALID",
+    "TESTS_INCOMPLETE",
   ],
   ["exit-only fake evidence", "console.log(JSON.stringify({ok:true}))", "REPORT_INVALID"],
   ["nonzero exit", "process.exit(23)", "CHECK_FAILED"],
@@ -200,7 +202,7 @@ await scenario("skipped real tests cannot finish", {}, (f) => {
     "import test from 'node:test'; test.skip('not executed',()=>{});",
   );
   start(f);
-  rejects(f, "run", "REPORT_INVALID");
+  rejects(f, "run", "TESTS_INCOMPLETE");
 });
 await scenario("missing new artifact cannot reuse earlier artifact", {}, (f) => {
   f.write("tests/journey.test.mjs", "import test from 'node:test'; test('runs',()=>{});");
@@ -322,6 +324,112 @@ await scenario("policy traversal and source symlinks are rejected", {}, (f) => {
   rejects(f, "start", "Unsafe path", "--policy", "../escape.json");
   symlinkSync(f.root, join(f.root, "src/link"));
   rejects(f, "start", "Symlink unsupported");
+});
+await scenario("ignored direct driver and declared helper stay bound to evidence", {}, (f) => {
+  f.write(".proofloop/check.test.mjs", fixtureCode);
+  f.write(".proofloop/helper.txt", "seed");
+  f.policy.checks[0].command = [
+    process.execPath,
+    "--test",
+    "--test-reporter=tap",
+    "check.test.mjs",
+  ];
+  f.policy.checks[0].cwd = ".proofloop";
+  f.policy.checks[0].inputs = [".proofloop/helper.txt"];
+  f.write(
+    ".proofloop/check.test.mjs",
+    fixtureCode.replace("'src/value.txt'", "'../src/value.txt'"),
+  );
+  f.write("proofloop.json", f.policy);
+  start(f);
+  f.good("run");
+  const passed = f.good("finish");
+  f.write(".proofloop/unrelated.log", "diagnostic");
+  assert.equal(f.good("status").evidence, passed.evidence);
+  f.write(".proofloop/helper.txt", "changed seed");
+  const stale = rejects(f, "status", "INPUT_CHANGED");
+  assert.notEqual(stale.evidence, passed.evidence);
+  f.write(".proofloop/helper.txt", "seed");
+  f.good("finish");
+  f.write(".proofloop/check.test.mjs", "process.exit(1)");
+  rejects(f, "finish", "INPUT_CHANGED");
+  rmSync(join(f.root, ".proofloop/check.test.mjs"));
+  rejects(f, "finish", "INPUT_CHANGED");
+});
+await scenario("ignored driver cannot rewrite itself during execution", {}, (f) => {
+  f.write(
+    ".proofloop/check.test.mjs",
+    fixtureCode.replace(
+      "JSON.stringify({ observed: 2 }));",
+      "JSON.stringify({ observed: 2 })); writeFileSync('.proofloop/check.test.mjs', 'process.exit(1)');",
+    ),
+  );
+  f.policy.checks[0].command[3] = ".proofloop/check.test.mjs";
+  f.write("proofloop.json", f.policy);
+  start(f);
+  rejects(f, "run", "INPUT_CHANGED_DURING_CHECK");
+});
+await scenario("declared inputs reject unsafe paths and missing files", {}, (f) => {
+  f.write(".proofloop/helper.txt", "safe");
+  symlinkSync(join(f.root, ".proofloop/helper.txt"), join(f.root, ".proofloop/link"));
+  for (const path of [
+    "../escape",
+    ".env",
+    ".git/config",
+    "./.git/config",
+    ".proofloop/runs/data",
+    ".proofloop/link",
+    ".proofloop/missing",
+  ]) {
+    f.policy.checks[0].inputs = [path];
+    f.write("proofloop.json", f.policy);
+    assert.notEqual(f.call("start").code, 0, path);
+  }
+});
+await scenario("empty artifact is distinguished from missing artifact", {}, (f) => {
+  f.write("tests/journey.test.mjs", fixtureCode.replace("JSON.stringify({ observed: 2 })", "''"));
+  start(f);
+  rejects(f, "run", "ARTIFACT_EMPTY");
+});
+await scenario("process checks capture silent success and refuse failed retries", {}, (f) => {
+  f.write(".proofloop/lint.mjs", "process.exit(0)");
+  f.policy.checks.push({
+    id: "lint",
+    criteria: ["outcome"],
+    command: [process.execPath, ".proofloop/lint.mjs"],
+    cwd: ".",
+    timeoutSeconds: 1,
+    reporter: "exit-code",
+    artifacts: [],
+  });
+  f.write("proofloop.json", f.policy);
+  start(f);
+  const run = f.good("run");
+  assert.equal(run.checks[1].tests, 0);
+  f.good("finish");
+  f.write(".proofloop/lint.mjs", "process.exit(23)");
+  const failed = rejects(f, "run", "CHECK_FAILED");
+  assert.equal(failed.checks[1].exitCode, 23);
+  assert.ok(!failed.checks[1].problems.some((p) => p.startsWith("REPORT_INVALID")));
+  rejects(f, "finish", "CHECK_FAILED");
+  f.write(".proofloop/lint.mjs", "setInterval(() => {}, 1000)");
+  rejects(f, "run", "TIMEOUT");
+});
+await scenario("process success alone does not establish behavioral coverage", {}, (f) => {
+  f.policy.checks[0].reporter = "exit-code";
+  f.write("proofloop.json", f.policy);
+  rejects(f, "start", "behavioral check");
+});
+await scenario("compact output links complete records without losing failures", {}, (f) => {
+  start(f);
+  const run = f.good("run", "--compact");
+  assert.equal(run.checks[0].command, undefined);
+  assert.equal(JSON.parse(readFileSync(run.record, "utf8")).checks[0].command.length, 4);
+  const finish = f.good("finish", "--compact");
+  assert.equal(finish.status, "verified");
+  assert.equal(JSON.parse(readFileSync(finish.record, "utf8")).evidence, finish.evidence);
+  f.write("src/value.txt", "3");
+  rejects(f, "status", "STALE", "--compact");
 });
 writeFileSync(
   join(output, "result.json"),

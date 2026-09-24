@@ -14,3 +14,14 @@ The reduced TypeScript CLI must exercise its public commands against disposable 
 10. Runs cannot overwrite baselines; paths cannot escape the repository/run through traversal or symlinks. All generated evidence lives in an ignored root `.proofloop/` directory. Secrets are not read by snapshot hashing.
 
 Scope: worktree root only; tracked files and nonignored untracked files, plus the Git index. No automatic environment provisioning, provider calls, model orchestration, global mutation campaign or sandbox claim. The project owns report quality, target/seed and expected artifacts. Ignored build outputs and external dependencies are not source fingerprints.
+
+## 2.1 pilot corrections — failure cases before implementation
+
+- A directly invoked ignored script, or an explicitly declared ignored helper/fixture, changes or disappears after execution: status/finish must reject the old evidence. Mutation during execution must fail too. Unrelated ignored outputs must not invalidate a run. Reject secret paths, symlinks, traversal and runner-owned records as declared inputs. Inputs are project-relative; command file arguments resolve from the check's cwd.
+- A complete negative TAP report must preserve its test count and report test failure, not malformed output. Zero/skipped/cancelled/todo tests still block completion.
+- A silent successful build/lint command must finish with captured empty logs and zero claimed tests; a failed or timed-out process must fail. An exit-code check cannot be the sole behavioral evidence for a criterion.
+- An existing empty required artifact must report ARTIFACT_EMPTY, a missing one ARTIFACT_MISSING. Neither may pass.
+- A copied skill must identify the package version without its repository. Compact CLI output must retain failures and evidence references, with full records available on disk; existing full JSON output remains available.
+- Exercise the Vitest JSON path using an actual installed Vitest process with passing, failing, skipped and zero-test runs before release. Malformed reports must not pass. Do not wrap builds or Vitest suites in synthetic Node tests.
+
+Use the existing public CLI acceptance driver for regression cases. Keep reporter-specific real-tool release probes temporary; do not add private-helper unit tests.

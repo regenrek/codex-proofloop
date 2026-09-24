@@ -17,6 +17,7 @@ import { parseArgs } from "node:util";
 import { matches, requireThat, validatePolicy, type Check, type Policy } from "./policy.mjs";
 import {
   changedPaths,
+  checkInputs,
   digest,
   ensureArtifact,
   git,
@@ -58,6 +59,7 @@ interface CheckResult {
   passed: boolean;
   problems: string[];
   artifacts: Artifact[];
+  inputs: Record<string, string>;
   node: string;
   platform: string;
   runner: string;
@@ -67,13 +69,19 @@ interface Execution {
   checks: CheckResult[];
   startedAt: string;
 }
+const version = (
+  JSON.parse(readFileSync(new URL("../version.json", import.meta.url), "utf8")) as {
+    version: string;
+  }
+).version;
 const runner = digest(
-  ["cli.mjs", "policy.mjs", "workspace.mjs"].map((p) =>
+  ["cli.mjs", "policy.mjs", "workspace.mjs", "../version.json"].map((p) =>
     sha(readFileSync(new URL(p, import.meta.url))),
   ),
 );
 const help = `Proofloop — record checks against an exact Git working state (Node 24+)
 
+  proofloop --version
   proofloop start  --project PATH --id ID [--policy proofloop.json]
   proofloop run    --project PATH --id ID
   proofloop status --project PATH --id ID
@@ -83,52 +91,117 @@ start freezes one policy and the existing working state. run executes every conf
 check in sequence, in fresh output directories. status/finish recompute freshness.
 finish exits 0 only when all checks, artifacts, scope and required review are satisfied.
 Exit codes: 0 success, 2 incomplete/rejected, 1 invocation/runtime error.
+Add --compact for short output with a full record path.
 Commands are argv arrays, without a shell. No background agent or model is started.
 `;
 const print = (value: unknown): void => {
   process.stdout.write(JSON.stringify(value, null, 2) + "\n");
 };
-function report(stdout: string, kind: Check["reporter"]): number {
+interface Report {
+  tests: number;
+  problems: string[];
+}
+function report(stdout: string, kind: Check["reporter"]): Report {
+  const outcome = (tests: number, complete: boolean): Report => ({
+    tests,
+    problems: complete && tests > 0 ? [] : ["TESTS_INCOMPLETE"],
+  });
   if (kind === "node-tap") {
     const count = (name: string): number => {
       const found = [...stdout.matchAll(new RegExp(`^# ${name} (\\d+)\\s*$`, "gm"))];
       requireThat(found.length === 1, `Missing/ambiguous TAP ${name}`);
-      return Number(found[0]![1]);
+      const value = Number(found[0]![1]);
+      requireThat(Number.isSafeInteger(value), `Invalid TAP ${name}`);
+      return value;
     };
     const tests = count("tests");
-    requireThat(
-      tests > 0 &&
-        count("pass") === tests &&
-        ["fail", "cancelled", "skipped", "todo"].every((n) => count(n) === 0),
-      "Incomplete TAP execution",
-    );
+    const passed = count("pass");
+    const other = ["fail", "cancelled", "skipped", "todo"].map(count);
     requireThat(
       stdout.startsWith("TAP version 13") && /^1\.\.\d+$/m.test(stdout),
       "Not a complete TAP report",
     );
-    return tests;
+    return outcome(tests, passed === tests && other.every((n) => n === 0));
   }
-  const parsed = JSON.parse(stdout) as {
-    stats?: Record<string, unknown>;
-    suites?: unknown[];
-    errors?: unknown[];
+  const parsed = JSON.parse(stdout) as Record<string, unknown>;
+  requireThat(parsed !== null && typeof parsed === "object", "Expected a JSON report");
+  const count = (value: unknown): number => {
+    requireThat(Number.isSafeInteger(value) && Number(value) >= 0, "Invalid report count");
+    return Number(value);
   };
-  const stats = parsed.stats;
+  if (kind === "vitest-json") {
+    const tests = count(parsed.numTotalTests);
+    const passed = count(parsed.numPassedTests);
+    const other = [
+      "numFailedTests",
+      "numPendingTests",
+      "numTodoTests",
+      "numFailedTestSuites",
+      "numPendingTestSuites",
+    ].map((key) => count(parsed[key]));
+    requireThat(
+      typeof parsed.success === "boolean" && Array.isArray(parsed.testResults),
+      "Missing Vitest results",
+    );
+    const suites = parsed.testResults as {
+      status?: string;
+      assertionResults?: { status?: string }[];
+    }[];
+    requireThat(
+      suites.every((s) => s && Array.isArray(s.assertionResults)),
+      "Invalid Vitest suites",
+    );
+    const assertions = suites.flatMap((s) => s.assertionResults!);
+    requireThat(assertions.length === tests, "Vitest count does not match assertions");
+    return outcome(
+      tests,
+      parsed.success &&
+        passed === tests &&
+        other.every((n) => n === 0) &&
+        suites.every((s) => s.status === "passed") &&
+        assertions.every((a) => a.status === "passed"),
+    );
+  }
+  const stats = parsed.stats as Record<string, unknown> | undefined;
   requireThat(
-    stats &&
-      Array.isArray(parsed.suites) &&
-      parsed.suites.length > 0 &&
-      Array.isArray(parsed.errors) &&
-      parsed.errors.length === 0,
+    stats && Array.isArray(parsed.suites) && Array.isArray(parsed.errors),
     "Missing Playwright results",
   );
-  requireThat(
-    Number.isInteger(stats.expected) &&
-      Number(stats.expected) > 0 &&
-      ["unexpected", "flaky", "skipped"].every((k) => stats[k] === 0),
-    "Incomplete Playwright execution",
+  const expected = count(stats.expected);
+  const unexpected = count(stats.unexpected);
+  const flaky = count(stats.flaky);
+  const skipped = count(stats.skipped);
+  return outcome(
+    expected + unexpected + flaky + skipped,
+    expected > 0 &&
+      unexpected === 0 &&
+      flaky === 0 &&
+      skipped === 0 &&
+      parsed.suites.length > 0 &&
+      parsed.errors.length === 0,
   );
-  return Number(stats.expected);
+}
+function printExecution(
+  execution: Execution,
+  status: string,
+  record: string,
+  compact: boolean,
+): void {
+  print(
+    compact
+      ? {
+          status,
+          candidate: execution.candidate,
+          record,
+          checks: execution.checks.map(({ id, passed, tests, problems }) => ({
+            id,
+            passed,
+            tests,
+            problems,
+          })),
+        }
+      : { status, ...execution },
+  );
 }
 function policyProblems(base: Baseline, current: Snapshot): string[] {
   const problems: string[] = [];
@@ -158,6 +231,7 @@ async function execute(
   folder: string,
   check: Check,
   before: Snapshot,
+  inputs: Record<string, string>,
 ): Promise<CheckResult> {
   const attempt = randomUUID();
   const out = inside(folder, `checks/${check.id}/${attempt}`);
@@ -182,6 +256,7 @@ async function execute(
     passed: false,
     problems: [],
     artifacts: [],
+    inputs,
     node: process.version,
     platform: process.platform,
     runner,
@@ -258,16 +333,24 @@ async function execute(
   if (result.exitCode !== 0 || result.signal) {
     result.problems.push("CHECK_FAILED");
   }
-  try {
-    requireThat(statSync(stdoutPath).size <= 20 * 1024 * 1024, "Report exceeds 20 MiB");
-    result.tests = report(readFileSync(stdoutPath, "utf8"), check.reporter);
-  } catch (error) {
-    result.problems.push(`REPORT_INVALID: ${String(error)}`);
+  if (check.reporter !== "exit-code") {
+    try {
+      requireThat(statSync(stdoutPath).size <= 20 * 1024 * 1024, "Report exceeds 20 MiB");
+      const parsed = report(readFileSync(stdoutPath, "utf8"), check.reporter);
+      result.tests = parsed.tests;
+      result.problems.push(...parsed.problems);
+    } catch (error) {
+      result.problems.push(`REPORT_INVALID: ${String(error)}`);
+    }
   }
   for (const artifact of check.artifacts) {
     try {
       requireThat(artifact !== "stdout.log" && artifact !== "stderr.log", "Reserved artifact name");
       const full = inside(out, artifact);
+      if (existsSync(full) && statSync(full).isFile() && statSync(full).size === 0) {
+        result.problems.push(`ARTIFACT_EMPTY: ${artifact}`);
+        continue;
+      }
       result.artifacts.push({
         path: relative(root, full).split("\\").join("/"),
         sha256: ensureArtifact(full),
@@ -282,6 +365,13 @@ async function execute(
       sha256: ensureArtifact(path, false),
       log: true,
     });
+  }
+  try {
+    if (digest(checkInputs(root, check)) !== digest(inputs)) {
+      result.problems.push("INPUT_CHANGED_DURING_CHECK");
+    }
+  } catch (error) {
+    result.problems.push(`INPUT_CHANGED_DURING_CHECK: ${String(error)}`);
   }
   result.after = snapshot(root).fingerprint;
   if (result.after !== before.fingerprint) {
@@ -299,11 +389,17 @@ async function main(): Promise<void> {
       id: { type: "string" },
       policy: { type: "string" },
       review: { type: "string" },
+      compact: { type: "boolean" },
+      version: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
     allowPositionals: true,
     strict: true,
   });
+  if (values.version) {
+    process.stdout.write(version + "\n");
+    return;
+  }
   if (values.help || positionals.length === 0) {
     process.stdout.write(help);
     return;
@@ -359,6 +455,9 @@ async function main(): Promise<void> {
         "Policy must be a non-secret source file",
       );
       const policy = validatePolicy(readJSON(path));
+      for (const check of policy.checks) {
+        checkInputs(root, check);
+      }
       const base: Baseline = {
         root,
         policyPath,
@@ -394,12 +493,17 @@ async function main(): Promise<void> {
       };
       // Invalidate the previous attempt before spawning; a crash cannot expose an old success.
       writeJSON(resultPath, execution);
-      for (const check of base.policy.checks) {
+      const inputs = base.policy.checks.map((check) => checkInputs(root, check));
+      for (const [index, check] of base.policy.checks.entries()) {
         requireThat(
           snapshot(root).fingerprint === current.fingerprint,
           "INPUT_CHANGED_DURING_CHECK",
         );
-        const result = await execute(root, folder, check, current);
+        requireThat(
+          digest(checkInputs(root, check)) === digest(inputs[index]),
+          "INPUT_CHANGED_DURING_CHECK",
+        );
+        const result = await execute(root, folder, check, current, inputs[index]!);
         execution.checks.push(result);
         writeJSON(resultPath, execution);
         if (!result.passed) {
@@ -409,11 +513,17 @@ async function main(): Promise<void> {
       const passed =
         execution.checks.length === base.policy.checks.length &&
         execution.checks.every((c) => c.passed);
-      print({ status: passed ? "checks-passed" : "failed", ...execution });
+      printExecution(
+        execution,
+        passed ? "checks-passed" : "failed",
+        resultPath,
+        Boolean(values.compact),
+      );
       process.exitCode = passed ? 0 : 2;
       return;
     }
     const execution = existsSync(resultPath) ? (readJSON(resultPath) as Execution) : null;
+    const currentInputs: Record<string, unknown> = {};
     if (!execution) {
       problems.push("EXECUTION_REQUIRED");
     } else {
@@ -426,7 +536,22 @@ async function main(): Promise<void> {
           problems.push(`EXECUTION_REQUIRED: ${check.id}`);
           continue;
         }
-        if (!result.passed || result.exitCode !== 0 || result.timedOut || result.tests <= 0) {
+        try {
+          currentInputs[check.id] = checkInputs(root, check);
+          if (digest(currentInputs[check.id]) !== digest(result.inputs)) {
+            problems.push(`INPUT_CHANGED: ${check.id}`);
+          }
+        } catch (error) {
+          currentInputs[check.id] = { error: String(error) };
+          problems.push(`INPUT_CHANGED: ${check.id}: ${String(error)}`);
+        }
+        if (
+          !result.passed ||
+          result.exitCode !== 0 ||
+          result.signal ||
+          result.timedOut ||
+          (check.reporter !== "exit-code" && result.tests <= 0)
+        ) {
           problems.push(`CHECK_FAILED: ${check.id}`, ...result.problems);
         }
         if (
@@ -456,6 +581,7 @@ async function main(): Promise<void> {
       baseline: base.snapshot.fingerprint,
       candidate: current.fingerprint,
       execution,
+      currentInputs,
     });
     let review: unknown = null;
     if (base.policy.review) {
@@ -514,7 +640,29 @@ async function main(): Promise<void> {
       }
       writeJSON(join(folder, "finish.json"), result);
     }
-    print(result);
+    const record = join(folder, command === "finish" ? "finish.json" : "status.json");
+    if (command === "status") {
+      writeJSON(record, result);
+    }
+    print(
+      values.compact
+        ? {
+            status: result.status,
+            id: result.id,
+            candidate: result.candidate,
+            evidence: result.evidence,
+            problems: result.problems,
+            record,
+            checks: result.checks.map(({ id, passed, tests, problems }) => ({
+              id,
+              passed,
+              tests,
+              problems,
+            })),
+            reviewRequired: result.review.required,
+          }
+        : result,
+    );
     process.exitCode = problems.length ? 2 : 0;
   } finally {
     if (lockFD !== undefined) {

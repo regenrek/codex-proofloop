@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
-import { matches, requireThat, safePath } from "./policy.mjs";
+import { matches, requireThat, safePath, type Check } from "./policy.mjs";
 export const sha = (data: string | Buffer): string =>
   createHash("sha256").update(data).digest("hex");
 export const digest = (data: unknown): string => sha(JSON.stringify(data));
@@ -114,4 +114,42 @@ export function ensureArtifact(path: string, nonempty = true): string {
     "Artifact must be a nonempty regular file",
   );
   return sha(readFileSync(path));
+}
+
+// Direct file arguments plus explicitly declared helpers; not an import-graph resolver.
+export function checkInputs(root: string, check: Check): Record<string, string> {
+  const paths = new Set(
+    (check.inputs ?? []).map((path) => relative(root, inside(root, path)).split(sep).join("/")),
+  );
+  const cwd = inside(root, check.cwd);
+  for (const arg of check.command) {
+    if (arg.startsWith("-") || arg.includes("\n") || arg.includes("\0")) {
+      continue;
+    }
+    const full = resolve(cwd, arg);
+    if (full.startsWith(root + sep) && existsSync(full)) {
+      const path = relative(root, full).split(sep).join("/");
+      // Reject symlinks even when their target is a directory.
+      if (lstatSync(inside(root, path)).isFile()) {
+        paths.add(path);
+      }
+    }
+  }
+  const inputs: Record<string, string> = {};
+  for (const path of [...paths].sort()) {
+    requireThat(
+      !isSensitive(path) &&
+        path !== ".git" &&
+        !path.startsWith(".git/") &&
+        path !== ".proofloop/runner.lock" &&
+        path !== ".proofloop/runs" &&
+        !path.startsWith(".proofloop/runs/"),
+      `Unsupported check input: ${path}`,
+    );
+    const full = inside(root, path);
+    const stat = lstatSync(full);
+    requireThat(stat.isFile(), `Check input must be a regular file: ${path}`);
+    inputs[path] = sha(Buffer.concat([Buffer.from(`${stat.mode}:`), readFileSync(full)]));
+  }
+  return inputs;
 }
