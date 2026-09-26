@@ -25,3 +25,9 @@ Scope: worktree root only; tracked files and nonignored untracked files, plus th
 - Exercise the Vitest JSON path using an actual installed Vitest process with passing, failing, skipped and zero-test runs before release. Malformed reports must not pass. Do not wrap builds or Vitest suites in synthetic Node tests.
 
 Use the existing public CLI acceptance driver for regression cases. Keep reporter-specific real-tool release probes temporary; do not add private-helper unit tests.
+
+## 2.1.1 pilot corrections — failure cases before implementation
+
+- A correctly assigned, evidence-bound FAIL review is a valid rejection: report REVIEW_REJECTED, preserve the actual response, and keep subsequent status rejected. Wrong identity/digest, malformed JSON or invalid shape remain REVIEW_INVALID. A PASS with open findings must not finish.
+- After finish, status.json must contain the same recalculated outcome, including an incomplete or rejected finish. A new run attempt removes old derived status/finish snapshots before execution so failed retries cannot leave a visible verified snapshot. The stored review must still be tied to its original evidence.
+- Exercise rejection, invalid responses, correction to PASS and snapshot freshness through the existing public CLI review scenario; no helper unit tests.

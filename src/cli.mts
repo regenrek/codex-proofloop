@@ -493,6 +493,9 @@ async function main(): Promise<void> {
       };
       // Invalidate the previous attempt before spawning; a crash cannot expose an old success.
       writeJSON(resultPath, execution);
+      for (const name of ["status.json", "finish.json"]) {
+        rmSync(inside(folder, name), { force: true });
+      }
       const inputs = base.policy.checks.map((check) => checkInputs(root, check));
       for (const [index, check] of base.policy.checks.entries()) {
         requireThat(
@@ -584,12 +587,18 @@ async function main(): Promise<void> {
       currentInputs,
     });
     let review: unknown = null;
+    let validReview = false;
     if (base.policy.review) {
       const storedReview = inside(folder, "review.json");
       if (!values.review && !existsSync(storedReview)) {
         problems.push("REVIEW_REQUIRED");
       } else {
-        review = readJSON(values.review ? inside(root, values.review) : storedReview);
+        try {
+          review = readJSON(values.review ? inside(root, values.review) : storedReview);
+        } catch {
+          // An unreadable/malformed response is not a reviewer rejection.
+          review = null;
+        }
         const r = review as {
           threadId?: string;
           evidence?: string;
@@ -599,17 +608,24 @@ async function main(): Promise<void> {
           summary?: string;
         };
         if (
+          !r ||
+          typeof r !== "object" ||
+          Array.isArray(r) ||
           r.threadId !== base.policy.review.threadId ||
           r.evidence !== evidence ||
-          r.verdict !== "pass" ||
+          (r.verdict !== "pass" && r.verdict !== "fail") ||
           !Array.isArray(r.criteria) ||
           !base.policy.criteria.every((c) => r.criteria!.includes(c.id)) ||
           !Array.isArray(r.findings) ||
-          r.findings.length !== 0 ||
           typeof r.summary !== "string" ||
           !r.summary.trim()
         ) {
           problems.push("REVIEW_INVALID");
+        } else {
+          validReview = true;
+          if (r.verdict === "fail" || r.findings.length > 0) {
+            problems.push("REVIEW_REJECTED");
+          }
         }
       }
     } else {
@@ -635,15 +651,13 @@ async function main(): Promise<void> {
       directory: folder,
     };
     if (command === "finish") {
-      if (!problems.length && review) {
+      if (validReview) {
         writeJSON(join(folder, "review.json"), review);
       }
       writeJSON(join(folder, "finish.json"), result);
     }
     const record = join(folder, command === "finish" ? "finish.json" : "status.json");
-    if (command === "status") {
-      writeJSON(record, result);
-    }
+    writeJSON(join(folder, "status.json"), result);
     print(
       values.compact
         ? {

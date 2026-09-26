@@ -14,6 +14,9 @@ is authorized, select `gpt-6-luna` and `max` using the tool's supported model an
 Select the existing project checkout when requested. Provide both task IDs and persist the return ID and
 ownership in the task context. The checker owns verification outputs; the main task owns source
 edits. Coordinate shared browser/server use. Freeze production edits while checking.
+Label the IDs explicitly as `checkerTaskId` and `returnTaskId` in the assignment. Resolve the return
+ID from the actual implementing task; never infer it from the checker ID or an old handoff. Return
+the result once to `returnTaskId` when messaging is authorized; otherwise expose it to the caller.
 
 Before `start`, put the actual assignment in the policy:
 
@@ -54,6 +57,10 @@ Markdown success report is unnecessary. After a real host response, store that a
 Run `finish --review .proofloop/checker-response.json`. Missing/mismatched review, unresolved findings
 or any failed execution remains incomplete. A valid review is stored for later `status` calls. Fixes
 require new execution and review of the new evidence; do not reuse an earlier digest.
+`REVIEW_REJECTED` means a valid FAIL response or open findings; fix those findings rather than
+rewriting the response to satisfy validation. `REVIEW_INVALID` means malformed, mismatched or stale
+review evidence. Use finish's returned record as the completion result; an immediate extra status
+call is unnecessary. Recalculate status only when freshness needs checking after later work.
 Re-review the fix and affected risks only. Continue review rounds only for concrete unresolved
 findings; report a blocker when those cannot be resolved within the assignment. Stop when the
 required checks and review pass. Do not expand a successful review into speculative hardening.

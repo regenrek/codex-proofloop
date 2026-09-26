@@ -253,16 +253,46 @@ await scenario(
     start(f);
     f.good("run");
     const pending = rejects(f, "finish", "REVIEW_REQUIRED");
-    f.write(".proofloop/review.json", {
+    const review = {
       threadId: "checker-task",
       evidence: pending.evidence,
       verdict: "pass",
       criteria: ["outcome"],
       findings: [],
       summary: "Observed outcome through recorded CLI execution.",
+    };
+    const statusPath = join(f.root, ".proofloop/runs/pilot/status.json");
+    const finishPath = join(f.root, ".proofloop/runs/pilot/finish.json");
+    const sameSnapshot = (result) => {
+      assert.deepEqual(JSON.parse(readFileSync(statusPath, "utf8")), result);
+      assert.deepEqual(JSON.parse(readFileSync(finishPath, "utf8")), result);
+    };
+    for (const invalid of [
+      null,
+      "{broken",
+      { ...review, threadId: "wrong" },
+      { ...review, evidence: "old" },
+      { ...review, verdict: "unknown" },
+    ]) {
+      f.write(".proofloop/review.json", invalid);
+      sameSnapshot(rejects(f, "finish", "REVIEW_INVALID", "--review", ".proofloop/review.json"));
+    }
+    f.write(".proofloop/review.json", {
+      ...review,
+      verdict: "fail",
+      findings: ["Public journey loses state"],
     });
-    f.good("finish", "--review", ".proofloop/review.json");
+    sameSnapshot(rejects(f, "finish", "REVIEW_REJECTED", "--review", ".proofloop/review.json"));
+    rejects(f, "status", "REVIEW_REJECTED");
+    f.write(".proofloop/review.json", { ...review, findings: ["Still open"] });
+    rejects(f, "finish", "REVIEW_REJECTED", "--review", ".proofloop/review.json");
+    f.write(".proofloop/review.json", review);
+    sameSnapshot(f.good("finish", "--review", ".proofloop/review.json"));
     f.good("status");
+    f.good("run");
+    assert.throws(() => readFileSync(statusPath), { code: "ENOENT" });
+    assert.throws(() => readFileSync(finishPath), { code: "ENOENT" });
+    rejects(f, "status", "REVIEW_INVALID");
     f.write("src/new.txt", "later");
     rejects(f, "finish", "STALE", "--review", ".proofloop/review.json");
   },

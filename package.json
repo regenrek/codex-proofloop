@@ -1,6 +1,6 @@
 {
   "name": "codex-proofloop",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Small evidence-based verification loop for coding agents",
   "type": "module",
   "license": "MIT",

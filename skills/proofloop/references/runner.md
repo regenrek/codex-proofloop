@@ -23,6 +23,14 @@ Add `--compact` to `run`, `status` or `finish` for short JSON with outcomes, pro
 `record` path. Use this in agent conversations; load detailed records only as needed. The default
 full JSON output remains available for existing callers. `status` also saves its recalculated
 packet to `status.json` beside the execution records; this derived packet is never trusted as state.
+`finish` refreshes that same snapshot, including on rejection. A new execution attempt removes the
+previous `status.json` and `finish.json` before spawning checks. Copies saved elsewhere remain
+historical snapshots. Use finish's returned result without an immediate redundant status call.
+
+A correctly assigned, evidence-bound FAIL review (or PASS with open findings) yields
+`REVIEW_REJECTED` and exit 2. Valid negative reviews are stored so subsequent status remains rejected.
+Malformed/unreadable responses, invalid structure, wrong task IDs or stale evidence yield
+`REVIEW_INVALID`. Rejection does not mean the review file needs a formatting fix.
 
 Exit 0 means that command succeeded; `start` success is not verification. `status`/`finish` exit 2 for
 incomplete evidence. Errors in configuration or invocation exit 1. An active runner holds

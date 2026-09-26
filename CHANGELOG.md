@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.1] - 2026-09-26
+
+- Report valid negative reviews and open findings as `REVIEW_REJECTED`; reserve `REVIEW_INVALID` for malformed, mismatched or stale responses. Preserve valid negative attestations for subsequent status calls.
+- Refresh `status.json` on every finish, including rejected completion. Remove old status/finish snapshots before a new execution attempt.
+- Clarify the native return task ID and use finish's returned record without a redundant status round trip. Keep existing focused review and no-duplicate-preflight guidance.
+
 ## [2.1.0] - 2026-09-24
 
 - Bind directly invoked local files and optional declared `inputs` to execution evidence, including ignored check drivers and helpers. Recheck them during execution and completion.

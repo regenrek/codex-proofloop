@@ -22,7 +22,7 @@ proofloop --version
 Or run it without a global install:
 
 ```sh
-npx --yes codex-proofloop@2.1.0 --help
+npx --yes codex-proofloop@2.1.1 --help
 ```
 
 For the complete Codex workflow, install the self-contained skill:
