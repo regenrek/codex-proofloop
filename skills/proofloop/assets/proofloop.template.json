@@ -40,10 +40,9 @@
     }
   ],
   "testChanges": [],
-  "environment": { "target": "local synthetic development", "seed": "journey-v1" },
-  "review": {
-    "threadId": "",
-    "model": "gpt-6-luna",
-    "reasoning": "max"
-  }
+  "environment": {
+    "target": "local synthetic development",
+    "seed": "journey-v1"
+  },
+  "review": null
 }

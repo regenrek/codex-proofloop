@@ -248,7 +248,13 @@ await scenario(
 );
 await scenario(
   "review is required and tied to exact evidence",
-  { review: { threadId: "checker-task", model: "gpt-6-luna", reasoning: "max" } },
+  {
+    review: {
+      threadId: "checker-task",
+      model: "project-selected-model",
+      reasoning: "project-selected-effort",
+    },
+  },
   (f) => {
     start(f);
     f.good("run");

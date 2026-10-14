@@ -1,4 +1,35 @@
-# Runner contract
+# Optional command runner
+
+Use this only for an explicitly selected frozen command run. The separate Proofloop skill is
+maintained in [instructa/agent-skills](https://github.com/instructa/agent-skills/tree/main/skills/engineering/proofloop)
+and uses the host's existing tools and records; it needs no runner, policy or installed Node.
+The runner records selected automated checks. It does not import browser-session or human evidence,
+provision environments, choose models or start reviewers. Do not create a wrapper test merely to
+make a live observation fit this protocol.
+
+## Start a run
+
+Adapt [the policy template](../assets/proofloop.template.json) to existing project commands and save
+it as `proofloop.json`. Keep the selected check set small: `run` starts the whole list again and
+stops at its first failure. It has no affected-check selection or evidence carry-forward across
+changed candidates. For iterative live debugging, use the ordinary skill workflow instead.
+
+The template uses `review: null`: the runner verifies execution, not independent review. If the
+task requires a review attestation here, assign the actual existing reviewer before `start` as
+described below. The runner cannot override the project's review requirement.
+
+```sh
+proofloop start --project /path/to/project --id feature-123
+# Implement within the declared scope.
+proofloop run --project /path/to/project --id feature-123 --compact
+proofloop finish --project /path/to/project --id feature-123 --compact
+```
+
+The npm package exposes these commands as `proofloop`. From a checkout, replace `proofloop` with
+`node /absolute/path/to/codex-proofloop/skills/proofloop/scripts/cli.mjs`. Paths below refer to the
+project being checked, not the runner installation.
+
+## Workspace and policy
 
 Node 24+ and Git. The project must be the Git worktree root and have at least one commit. The root
 `.proofloop/` must be ignored and untracked. All paths are project-relative, except the executable in
@@ -10,6 +41,15 @@ goal, allowed paths, test detection, criteria with failure modes, checks, planne
 environment labels and optional review assignment. All criteria need a check. Change the policy
 before starting a new run; do not overwrite an existing baseline.
 
+In `testChanges`, declare each intended `add`, `modify` or `delete` with its exact path, reason and
+surviving check IDs. A rename is a deletion plus an addition. For a permanent isolated addition,
+describe the gap in the selected journey in `reason` and the concrete failure in its criterion.
+The runner checks declarations and execution; it cannot judge the semantic value of a test.
+
+```json
+{"path":"tests/copied-title.test.mjs","action":"delete","reason":"Restates the production lookup; the retained journey checks the rendered result","checks":["journey"]}
+```
+
 ## Commands
 
 - `start --project PATH --id ID [--policy PATH]`: snapshot policy and existing working content.
@@ -17,7 +57,7 @@ before starting a new run; do not overwrite an existing baseline.
   the first failure. Each attempt has a fresh directory. `run` does not imply final acceptance.
 - `status --project PATH --id ID`: recalculate scope, evidence and review freshness.
 - `finish --project PATH --id ID [--review PATH]`: perform the same checks and write `finish.json`.
-- `--version`: print the installed version, including from a copied skill directory.
+- `--version`: print the installed runner version.
 
 Add `--compact` to `run`, `status` or `finish` for short JSON with outcomes, problems and a full
 `record` path. Use this in agent conversations; load detailed records only as needed. The default
@@ -36,6 +76,39 @@ Exit 0 means that command succeeded; `start` success is not verification. `statu
 incomplete evidence. Errors in configuration or invocation exit 1. An active runner holds
 `.proofloop/runner.lock` across the worktree. If killed without cleanup, inspect the recorded PID and
 remove the lock only after confirming that process has ended. No automatic stale-lock takeover.
+
+## Optional assigned review
+
+Reviewer choice and authorization belong to the user or existing orchestrator. Record that actual
+assignment in the policy before `start`; there is no model or reasoning-level default:
+
+```json
+{"review":{"threadId":"actual-reviewer-task-id","model":"actual-selected-model","reasoning":"actual-selected-effort"}}
+```
+
+After execution, use the returned record or `status --compact` to give the assigned reviewer the
+relevant diff and evidence. Reuse that review; do not add a second Proofloop reviewer. The host
+owns delegation, waiting and delivery. A required missing review leaves completion open.
+
+Store the reviewer's actual response under the project's `.proofloop/`:
+
+```json
+{
+  "threadId": "actual-reviewer-task-id",
+  "evidence": "digest-from-status",
+  "verdict": "pass",
+  "criteria": ["journey"],
+  "findings": [],
+  "summary": "What was checked, limits and any nonblocking follow-ups."
+}
+```
+
+`findings` contains unresolved blocking findings; nonblocking notes belong in `summary`. Do not
+reclassify a product defect or unmet requirement just to finish. Run `finish --review
+.proofloop/review.json --compact`. The runner validates the assignment reference and evidence
+binding, not the reviewer's identity or model: this is an unauthenticated local attestation. Never
+invent a response. Corrections require new execution; review the fix and affected risks against
+the new evidence. Use finish's returned result without a redundant status call.
 
 ## Reporters and artifacts
 
@@ -111,8 +184,10 @@ artifact requires another execution. External services can change without changi
 `environment.target` and `seed` are declared context, not measured deployment identities. Pin and
 reset the actual environment in the project-owned check when reproducibility requires it.
 
-Finish active runs with their installed runner before upgrading. Existing 2.0 policies remain valid;
-2.0 execution evidence must be rerun under 2.1 because the runner and input binding changed.
+Finish active runs with their pinned runner before upgrading. The published `codex-proofloop` npm
+name, CLI commands, policy schema and on-disk records remain public contracts. Version 3 separates
+the skill into its own collection without changing those formats. There is no migration, alias, alternate parser or legacy-format
+branch. A different runner/version digest requires fresh execution; do not overwrite old evidence.
 
 A local agent can edit this runner and its records. This is an execution guardrail, not a tamper-proof
 sandbox or attestation service. Windows timeout cleanup guarantees the child process only; POSIX

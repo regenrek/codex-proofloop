@@ -1,7 +1,7 @@
 {
   "name": "codex-proofloop",
-  "version": "2.1.1",
-  "description": "Small evidence-based verification loop for coding agents",
+  "version": "3.0.0",
+  "description": "Optional command runner for frozen verification evidence; the Proofloop skill lives in instructa/agent-skills",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -14,6 +14,8 @@
   "files": [
     "skills/proofloop",
     "README.md",
+    "docs/runner-acceptance.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {

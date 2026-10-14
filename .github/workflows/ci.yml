@@ -29,5 +29,3 @@ jobs:
         with:
           name: cli-acceptance-node-${{ matrix.node }}
           path: .proofloop/acceptance/result.json
-      - name: Discover installable skill
-        run: npx --yes skills@1.5.22 add . --list

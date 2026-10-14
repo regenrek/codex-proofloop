@@ -1,9 +1,9 @@
-# Proofloop development
+# Proofloop runner development
 
-- Do not add permanent unit tests after implementing code. Before an isolated test is justified, write the failure modes and explain the gap in existing E2E coverage.
-- Prefer checks through the public CLI, real Git repositories and real subprocesses. Keep a repeatable result artifact. Do not test copied wording or private helper structure.
-- Edit `src/*.mts`; `npm run build` regenerates the self-contained `skills/proofloop/scripts/*.mjs` runtime. Include both source and generated runtime in changes. Keep runtime npm dependencies at zero unless a concrete need justifies one.
-- Use `npm run format` for Oxfmt formatting and `npm run lint` for Oxlint checks. Keep two-space indentation and braces on control-flow bodies. The build also formats generated runtime files; do not edit them by hand.
-- `npm run acceptance` exercises disposable repositories and writes `.proofloop/acceptance/result.json`. The acceptance contract is in `docs/runner-acceptance.md`.
-- There is one skill, one policy per project and generated records per run. Avoid adding model-specific variants, phase contracts, background watchers or an external orchestrator dependency.
-- Treat local review files as attestations. Do not claim authenticated model identity, live product verification or deployment coverage from a local passing check.
+- The agent-neutral skill is maintained in `instructa/agent-skills`, under `skills/engineering/proofloop`. This repository owns the optional runner only; do not reintroduce a skill entrypoint or duplicate its strategy here. Model, reviewer and transport choices belong to the caller.
+- New permanent tests need a concrete failure and a gap in existing checks before implementation. Prefer the public CLI, real Git repositories and real subprocesses. Do not test copied wording or private helper structure.
+- The optional runner has real external contracts: `package.json` owns the published package name and executable; `src/policy.mts::validatePolicy` owns the policy schema; `src/cli.mts::main` and `execute` expose commands and consume or produce persisted run records. Preserve these existing consumer boundaries unless deliberately changing them; do not add legacy-shape parsers, aliases or migration code.
+- Edit `src/*.mts`; `npm run build` regenerates `skills/proofloop/scripts/*.mjs` and version metadata. Include source and generated runtime changes together. Keep runtime npm dependencies at zero unless a concrete need justifies one.
+- Use `npm run format`, `npm run lint`, `npm run format:check` and `npm run build`. `npm run acceptance` exercises the public CLI in disposable repositories and writes `.proofloop/acceptance/result.json`; its contract is in `docs/runner-acceptance.md`.
+- Keep one runner. No model-specific variants, background watchers, duplicate review workflow or new verification framework.
+- Treat local review files as attestations. Local validation does not prove live product behavior, host skill loading, reviewer identity or delivery-speed improvement.

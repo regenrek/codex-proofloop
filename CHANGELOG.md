@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.0] - Unreleased
+
+- Move the agent-neutral `proofloop` skill to `instructa/agent-skills`, under `skills/engineering/proofloop`. The skill owns early live checks, deliberate permanent-test admission and bounded reruns; it has no dependency on this runner.
+- Remove the skill entrypoint, UI metadata, activation template and test-strategy reference from this repository. Remove the fixed Luna reviewer and orchestration reference; do not maintain a second skill here.
+- Retain the optional command runner. Default its policy template to `review: null` and document reuse of an existing required reviewer without a model default.
+- Retain the published npm name `codex-proofloop`, executable path, CLI and persisted record formats. No migration or compatibility layer is introduced. Finish existing runs with their pinned runner.
+- Publish the skill separately in `instructa/agent-skills`; this npm version remains unreleased. Structural validation and runner checks do not establish cross-agent skill loading, faster delivery or equal defect detection.
+
 ## [2.1.1] - 2026-09-26
 
 - Report valid negative reviews and open findings as `REVIEW_REJECTED`; reserve `REVIEW_INVALID` for malformed, mismatched or stale responses. Preserve valid negative attestations for subsequent status calls.

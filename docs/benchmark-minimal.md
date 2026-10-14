@@ -1,4 +1,7 @@
-# Minimal Pokedex benchmark
+# Historical v1 Pokedex benchmark
+
+This records the retired v1 BUILD workflow. It is not an instruction for the current skill and does
+not measure the agent-neutral v3 workflow. The original observations below are retained as history.
 
 We ran one small comparison to see how a normal Sol run differs from a Proofloop BUILD run.
 
